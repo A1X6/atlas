@@ -2,15 +2,16 @@
 
 A full-stack product & user management application built for a technical assessment.
 
-- **Public marketing site** + SEO-indexed **product catalogue**
-- **Authentication** (register / login) with **role-based access** (Admin / User)
-- **Admin** dashboard, product management (CRUD, bulk actions), and external-API product sync
-- Secure, **mobile-ready REST API** that web and future native apps share
+- **Public marketing site** + SEO-indexed **product catalogue** (SSG/SSR/ISR, JSON-LD, hreflang, OG images)
+- **Authentication** (register / login) with **role-based access** (Admin / User), **email-verification
+  gate**, **account lockout**, and multiple emails/phones per user (each verified via **email**/**SMS OTP**)
+- **Admin** dashboard, product management (CRUD, bulk actions, TanStack table), and external-API product sync
+- Secure, **mobile-ready REST API** that web and future native apps share; **Sentry** error monitoring
 - **Bilingual (English + Arabic) with full RTL**, light/dark theming, and toast notifications
 
 **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Prisma 7 + Neon
-Postgres · JWT (argon2id) · Vercel Blob · Upstash Redis · TanStack Query · **next-intl** (i18n) ·
-**next-themes** (theming) · **Sonner** (toasts) · Vitest + Playwright.
+Postgres · JWT (argon2id) · Vercel Blob · Upstash Redis · TanStack Query + Table · Sentry ·
+**next-intl** (i18n) · **next-themes** (theming) · **Sonner** (toasts) · Vitest + Playwright.
 
 > Architecture, security, external API, mobile, and SEO write-ups live in [`/docs`](./docs).
 
@@ -38,13 +39,19 @@ Postgres · JWT (argon2id) · Vercel Blob · Upstash Redis · TanStack Query · 
 cp .env.example .env
 ```
 
-Fill in `.env`:
+Fill in `.env` (see `.env.example` for the full annotated list):
 
-- `DATABASE_URL` — your Neon/Postgres connection string.
-- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` — generate each with `openssl rand -base64 48`.
-- (Optional locally) `BLOB_READ_WRITE_TOKEN` for image uploads, and
-  `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` for rate limiting.
-  If omitted, uploads return a clear error and rate limiting is skipped.
+- **Required:** `DATABASE_URL` (Neon/Postgres) and `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`
+  (generate each with `openssl rand -base64 48`).
+- **Optional — graceful fallback if unset:**
+  - `UPSTASH_REDIS_REST_URL` / `_TOKEN` — rate limiting (skipped if absent).
+  - `BLOB_READ_WRITE_TOKEN` — image uploads (clear error if absent).
+  - `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` — real verification/reset **email** (logs to console if absent).
+  - `MESSAGECENTRAL_*` — real phone-verification **SMS** (logs to console if absent).
+  - `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` — error monitoring (inert if absent).
+
+> With no optional keys set, the app runs fully locally — verification codes/links just print to the
+> server console instead of being emailed/texted.
 
 ### 3. Install, migrate, seed, run
 
@@ -70,6 +77,7 @@ Open `http://localhost:3000`, browse the catalogue, then sign in with a test acc
 | `npm run db:seed`    | Seed test accounts + sample products                |
 | `npm run db:studio`  | Open Prisma Studio                                  |
 | `npm test`           | Run unit tests (Vitest)                             |
+| `npm run test:integration` | Run DB-backed integration tests (real Neon DB) |
 | `npm run test:e2e`   | Run end-to-end tests (Playwright)                   |
 | `npm run lint`       | Lint                                                |
 
@@ -81,7 +89,10 @@ Open `http://localhost:3000`, browse the catalogue, then sign in with a test acc
 2. Add the **Neon**, **Vercel Blob**, and **Upstash Redis** integrations from the Vercel
    Marketplace — they auto-inject `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, and the Upstash vars.
 3. Add `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `APP_URL` (your production URL) as env vars.
-4. Deploy. Then run migrations + seed against the production DB:
+   Optionally add `BREVO_*` / `MESSAGECENTRAL_*` (real email/SMS) and `SENTRY_DSN` (monitoring) — without
+   them verification codes log to the server logs. `NODE_ENV` is set to `production` by Vercel automatically.
+4. Deploy (Vercel auto-deploys on push; its build runs ESLint + TypeScript + `next build` as the gate).
+   Then run migrations + seed against the production DB:
    ```bash
    DATABASE_URL=<prod-url> npx prisma migrate deploy
    DATABASE_URL=<prod-url> npm run db:seed
@@ -105,7 +116,7 @@ messages/                 # en.json, ar.json (all UI strings)
 src/
   i18n/                   # routing, navigation (localized Link/useRouter), request config
   server/                 # framework-agnostic backend
-    services/ repositories/ auth/ external/ storage/ validation/ http/ security/
+    services/ repositories/ auth/ external/ storage/ validation/ http/ security/ email/ sms/
   lib/                    # api client, auth context, utils (cn), useErrorMessage
   components/ui/          # shadcn/ui primitives (button, input, dialog, select, sheet, sonner…)
   ui/                     # Atlas feature components (adapters over shadcn) + LanguageSwitcher

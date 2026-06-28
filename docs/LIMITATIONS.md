@@ -9,15 +9,22 @@ Honest list of what's intentionally out of scope or could be improved.
 - **Admin Users screen** ✅ — admins browse/search users *and* edit role + basic fields at
   `/app/users` (`PATCH /api/v1/users/:id`), with self-lockout and last-admin guards.
 - **Email verification & password reset** ✅ — full token-based flows (verify on register, resend,
-  forgot/reset). Emails are **logged to the server console** because no mail provider is configured;
-  wiring a provider (Resend/SES/Postmark) is a one-function change in `src/server/email/mailer.ts`.
+  forgot/reset), and **login is blocked until the primary email is verified**. Real delivery is wired to
+  **Brevo** (`src/server/email/mailer.ts`); without `BREVO_*` keys it **logs to the server console** so
+  the flow is fully testable locally.
+- **Phone verification (SMS OTP)** ✅ — adding/verifying phone numbers via one-time codes, wired to
+  **Message Central** (`src/server/sms/sms-sender.ts`); console fallback when `MESSAGECENTRAL_*` is unset.
+- **Account lockout** ✅ — 5 failed logins lock the account for 15 minutes (`src/server/auth/lockout.ts`).
+- **Error monitoring** ✅ — Sentry is integrated (`@sentry/nextjs`) and stays inert until a DSN is set.
 - **Cursor pagination** ✅ — `GET /api/v1/products/feed` is keyset-paginated (newest-first) and powers
   the in-app product browser's infinite scroll. The **public catalogue keeps numbered offset pages on
   purpose** — crawlable numbered URLs are better for SEO than infinite scroll.
 
 ## Remaining functional gaps
 
-- **Real email delivery** requires configuring a provider (see above).
+- **Real email/SMS delivery** is off until provider keys are set: add `BREVO_*` (email) and
+  `MESSAGECENTRAL_*` (SMS). Brevo needs a verified sender; Message Central delivers on free test credits.
+  Until then both channels log to the server console.
 - **Cursor feed is newest-first only.** Other sort orders (price, name) still use offset paging;
   keyset pagination for those needs each sort column added to the cursor.
 - **Admins can't edit other users' emails/phones** (only role + name + country); users manage their own.
@@ -45,10 +52,13 @@ Honest list of what's intentionally out of scope or could be improved.
 
 ## Testing
 
-- **Unit tests** cover the security-critical pure logic (hashing, tokens, validation, image detection,
-  formatting). **Service/repository integration tests** and the **Playwright** data-dependent flows
-  (admin CRUD, role 403s) require a seeded database and aren't run in the default CI path; the smoke
-  E2E specs cover DB-free public pages.
+- **Unit tests** (`npm test`) cover the security-critical pure logic (hashing, tokens, lockout,
+  validation, image detection, formatting).
+- **Integration tests** (`npm run test:integration`) hit a real Neon DB and cover the auth flows
+  end-to-end: registration gating, the login email-verification gate, account lockout, and phone OTP.
+- **Playwright** smoke specs cover the DB-free public pages.
+- There is **no GitHub Actions CI** — the project deploys via **Vercel auto-deploy**, whose build runs
+  ESLint + TypeScript + `next build` as the gate. Run the test suites locally before pushing.
 
 ## Ops
 

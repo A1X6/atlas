@@ -39,9 +39,12 @@ which are required here.
 
 Relational, normalized (Prisma schema in `prisma/schema.prisma`):
 
-- `User` 1—N `Email`, 1—N `Phone` (multiple emails/phones, each with an `isPrimary` flag).
-  Login identity is resolved through the unique `Email.address`.
+- `User` 1—N `Email`, 1—N `Phone` (multiple emails/phones, each with an `isPrimary` and a `verified`
+  flag). Login identity is resolved through the unique, **verified** primary `Email.address`. The `User`
+  also carries `failedLoginAttempts` + `lockedUntil` for **account lockout**.
 - `User` 1—N `RefreshToken` (hashed, rotatable, revocable).
+- `VerificationToken` — backs **email verification, password reset, and phone (SMS OTP) verification**;
+  stores only a token hash, with a type, expiry, and attempt counter.
 - `Product` (unique `slug` for SEO URLs, unique `externalId` for sync idempotency, money stored as
   integer `priceCents` to avoid float errors).
 - `ContactMessage` for the public contact form.
@@ -56,6 +59,9 @@ Relational, normalized (Prisma schema in `prisma/schema.prisma`):
 | Client data | TanStack Query                 | Caching + loading/error states for the admin + browse UIs        |
 | Storage     | Vercel Blob behind an interface| Serverless FS is ephemeral; swappable provider                   |
 | Rate limit  | Upstash Redis                  | Shared across serverless instances                               |
+| Email       | Brevo (REST) behind `mailer.ts`| Verification/reset email; env-gated, console fallback in dev      |
+| SMS         | Message Central behind `sms-sender.ts` | Phone OTP delivery; env-gated, console fallback in dev    |
+| Monitoring  | Sentry (`@sentry/nextjs`)      | Error/exception capture; inert until a DSN is set                |
 | UI kit      | shadcn/ui (Radix) + Tailwind v4 | Accessible primitives; Atlas tokens mapped onto shadcn variables |
 | i18n        | next-intl (locale-prefixed)    | EN/AR + RTL; SEO-friendly per-locale URLs (see I18N.md)          |
 | Theming     | next-themes (`.dark` class)    | Light/dark/system, no flash; aligns with shadcn                  |

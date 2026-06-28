@@ -37,6 +37,7 @@ serverless.
 
 ## What a mobile app would reuse as-is
 
-Registration, login/refresh/logout, profile (`/auth/me`), product browsing with pagination/search/sort,
-admin product management, image upload, and the external sync — all already HTTP endpoints. A mobile
-app only needs to build its own UI.
+Registration, login/refresh/logout, profile (`/auth/me`), **email verification & password reset**,
+**account management** (multiple emails/phones with **email**/**SMS OTP** verification), product browsing
+with pagination/search/sort, admin product management, image upload, and the external sync — all already
+HTTP endpoints. A mobile app only needs to build its own UI.
