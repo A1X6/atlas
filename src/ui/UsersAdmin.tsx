@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { type ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { api } from "@/src/lib/api";
 import { useErrorMessage } from "@/src/lib/useErrorMessage";
 import { useAuth } from "@/src/lib/auth";
 import type { Paginated, Role, UserProfile } from "@/src/lib/types";
 import { Button, Input, Label, RoleBadge, Spinner } from "@/src/ui/primitives";
+import { DataTable } from "@/src/ui/DataTable";
+import { Pagination } from "@/src/ui/Pagination";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +37,6 @@ function primaryPhone(u: UserProfile): string {
 export function UsersAdmin() {
   const t = useTranslations("users");
   const format = useFormatter();
-  const locale = useLocale();
-  const isRtl = locale === "ar";
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<UserProfile | null>(null);
@@ -47,6 +48,76 @@ export function UsersAdmin() {
     queryKey: ["admin-users", { q, page }],
     queryFn: () => api<Paginated<UserProfile>>(`/users?${params.toString()}`),
     placeholderData: keepPreviousData,
+  });
+
+  const columns = useMemo<ColumnDef<UserProfile>[]>(
+    () => [
+      {
+        id: "user",
+        header: t("colUser"),
+        meta: { thClass: "px-4", tdClass: "px-4" },
+        cell: ({ row }) => {
+          const u = row.original;
+          return (
+            <div className="flex items-center gap-3">
+              <span
+                className="h-8 w-8 flex-none rounded-full bg-gradient-to-br from-accent to-[#60a5fa] bg-cover"
+                style={u.avatarUrl ? { backgroundImage: `url(${u.avatarUrl})` } : undefined}
+              />
+              <div className="min-w-0">
+                <div className="font-medium text-text">
+                  {u.firstName} {u.lastName}
+                </div>
+                <div className="truncate text-[12px] text-text-3">{primaryEmail(u)}</div>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "role",
+        header: t("colRole"),
+        cell: ({ row }) => <RoleBadge role={row.original.role} />,
+      },
+      {
+        id: "phone",
+        header: t("colPhone"),
+        meta: { thClass: "hidden sm:table-cell", tdClass: "hidden text-text-2 sm:table-cell" },
+        cell: ({ row }) => primaryPhone(row.original),
+      },
+      {
+        id: "country",
+        header: t("colCountry"),
+        meta: { thClass: "hidden md:table-cell", tdClass: "hidden text-text-2 md:table-cell" },
+        cell: ({ row }) => row.original.country ?? "—",
+      },
+      {
+        id: "joined",
+        header: t("colJoined"),
+        meta: { thClass: "text-end", tdClass: "text-end font-mono text-[12px] text-text-3" },
+        cell: ({ row }) => format.dateTime(new Date(row.original.createdAt), { dateStyle: "medium" }),
+      },
+      {
+        id: "edit",
+        header: t("colEdit"),
+        meta: { thClass: "px-4 text-end", tdClass: "px-4 text-end" },
+        cell: ({ row }) => (
+          <button
+            onClick={() => setEditing(row.original)}
+            className="text-[13px] font-medium text-accent hover:underline"
+          >
+            {t("colEdit")}
+          </button>
+        ),
+      },
+    ],
+    [t, format],
+  );
+
+  const table = useReactTable({
+    data: data?.items ?? [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   return (
@@ -64,6 +135,7 @@ export function UsersAdmin() {
             setPage(1);
           }}
           placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
           className="h-9 w-full max-w-xs rounded-lg border border-border-strong bg-surface px-3 text-sm text-text outline-none focus:border-accent"
         />
       </div>
@@ -76,54 +148,7 @@ export function UsersAdmin() {
         ) : isError ? (
           <div className="p-10 text-center text-sm text-text-2">{t("fetchError")}</div>
         ) : data && data.items.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-2 text-start text-[11px] uppercase tracking-wide text-text-2">
-                <th className="px-4 py-2.5 font-semibold">{t("colUser")}</th>
-                <th className="px-2 py-2.5 font-semibold">{t("colRole")}</th>
-                <th className="hidden px-2 py-2.5 font-semibold sm:table-cell">{t("colPhone")}</th>
-                <th className="hidden px-2 py-2.5 font-semibold md:table-cell">{t("colCountry")}</th>
-                <th className="px-2 py-2.5 text-end font-semibold">{t("colJoined")}</th>
-                <th className="px-4 py-2.5 text-end font-semibold">{t("colEdit")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((u) => (
-                <tr key={u.id} className="border-b border-border last:border-0 hover:bg-surface-2">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="h-8 w-8 flex-none rounded-full bg-gradient-to-br from-accent to-[#60a5fa] bg-cover"
-                        style={u.avatarUrl ? { backgroundImage: `url(${u.avatarUrl})` } : undefined}
-                      />
-                      <div className="min-w-0">
-                        <div className="font-medium text-text">
-                          {u.firstName} {u.lastName}
-                        </div>
-                        <div className="truncate text-[12px] text-text-3">{primaryEmail(u)}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-2 py-3">
-                    <RoleBadge role={u.role} />
-                  </td>
-                  <td className="hidden px-2 py-3 text-text-2 sm:table-cell">{primaryPhone(u)}</td>
-                  <td className="hidden px-2 py-3 text-text-2 md:table-cell">{u.country ?? "—"}</td>
-                  <td className="px-2 py-3 text-end font-mono text-[12px] text-text-3">
-                    {format.dateTime(new Date(u.createdAt), { dateStyle: "medium" })}
-                  </td>
-                  <td className="px-4 py-3 text-end">
-                    <button
-                      onClick={() => setEditing(u)}
-                      className="text-[13px] font-medium text-accent hover:underline"
-                    >
-                      {t("colEdit")}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable table={table} label={t("title")} />
         ) : (
           <div className="p-10 text-center">
             <h2 className="text-base font-semibold text-text">{t("emptyTitle")}</h2>
@@ -137,22 +162,7 @@ export function UsersAdmin() {
           <span className="text-sm text-text-2">
             {t("pageInfo", { page: data.page, totalPages: data.totalPages })}
           </span>
-          <div className="flex gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="h-8 rounded-lg border border-border-strong bg-surface px-3 text-sm disabled:opacity-40"
-            >
-              {isRtl ? "›" : "‹"}
-            </button>
-            <button
-              disabled={page >= data.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="h-8 rounded-lg border border-border-strong bg-surface px-3 text-sm disabled:opacity-40"
-            >
-              {isRtl ? "‹" : "›"}
-            </button>
-          </div>
+          <Pagination page={page} totalPages={data.totalPages} onChange={setPage} />
         </div>
       )}
 

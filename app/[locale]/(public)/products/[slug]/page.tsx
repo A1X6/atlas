@@ -6,6 +6,7 @@ import { getTranslations, getFormatter, setRequestLocale } from "next-intl/serve
 import { Link } from "@/src/i18n/navigation";
 import { getPublishedProductBySlug } from "@/src/server/services/product-service";
 import { StatusBadge } from "@/src/ui/primitives";
+import { absoluteUrl, buildAlternates } from "@/src/lib/seo";
 import type { Product } from "@/src/lib/types";
 
 // On-demand ISR: detail pages are generated on first request, then cached.
@@ -32,13 +33,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     description:
       product.description ||
       t("metaDescriptionFallback", { name: product.name, category: product.category }),
-    alternates: {
-      canonical: `/${locale}/products/${product.slug}`,
-      languages: {
-        en: `/en/products/${product.slug}`,
-        ar: `/ar/products/${product.slug}`,
-      },
-    },
+    alternates: buildAlternates(locale, `/products/${product.slug}`),
     openGraph: {
       title: product.name,
       description: product.description,
@@ -59,24 +54,44 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
     currency: product.currency,
   });
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: product.description,
-    category: product.category,
-    sku: product.sku ?? undefined,
-    image: product.imageUrl ?? undefined,
-    offers: {
-      "@type": "Offer",
-      price: (product.priceCents / 100).toFixed(2),
-      priceCurrency: product.currency,
-      availability:
-        product.status === "OUT_OF_STOCK"
-          ? "https://schema.org/OutOfStock"
-          : "https://schema.org/InStock",
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      sku: product.sku ?? undefined,
+      image: product.imageUrl ?? undefined,
+      offers: {
+        "@type": "Offer",
+        price: (product.priceCents / 100).toFixed(2),
+        priceCurrency: product.currency,
+        availability:
+          product.status === "OUT_OF_STOCK"
+            ? "https://schema.org/OutOfStock"
+            : "https://schema.org/InStock",
+      },
     },
-  };
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("breadcrumbProducts"),
+          item: absoluteUrl(`/${locale}/products`),
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: product.name,
+          item: absoluteUrl(`/${locale}/products/${product.slug}`),
+        },
+      ],
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12">

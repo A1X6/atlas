@@ -11,9 +11,10 @@ function localizedEntry(
   href: string,
   extra: Omit<MetadataRoute.Sitemap[number], "url" | "alternates">,
 ): MetadataRoute.Sitemap[number] {
-  const languages = Object.fromEntries(
+  const languages: Record<string, string> = Object.fromEntries(
     routing.locales.map((locale) => [locale, APP_URL + getPathname({ locale, href })]),
   );
+  languages["x-default"] = APP_URL + getPathname({ locale: routing.defaultLocale, href });
   return {
     url: APP_URL + getPathname({ locale: routing.defaultLocale, href }),
     alternates: { languages },

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { buildAlternates } from "@/src/lib/seo";
 import { ContactForm } from "@/src/ui/ContactForm";
 
 export async function generateMetadata({
@@ -12,10 +13,7 @@ export async function generateMetadata({
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
-    alternates: {
-      canonical: `/${locale}/contact`,
-      languages: { en: "/en/contact", ar: "/ar/contact" },
-    },
+    alternates: buildAlternates(locale, "/contact"),
   };
 }
 

@@ -28,6 +28,18 @@ const EnvSchema = z.object({
   // Vercel Blob (image storage). Optional in local dev.
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 
+  // Email (Brevo transactional). Optional → mailer logs to console if absent.
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_SENDER_EMAIL: z.string().optional(),
+  BREVO_SENDER_NAME: z.string().optional(),
+
+  // SMS (Message Central CPaaS). Optional → sms-sender logs to console if absent.
+  MESSAGECENTRAL_CUSTOMER_ID: z.string().optional(),
+  MESSAGECENTRAL_PASSWORD: z.string().optional(),
+  MESSAGECENTRAL_SENDER_ID: z.string().optional(),
+  MESSAGECENTRAL_EMAIL: z.string().optional(),
+  MESSAGECENTRAL_COUNTRY: z.string().optional(),
+
   // App
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().default("http://localhost:3000"),
@@ -37,7 +49,13 @@ let cached: z.infer<typeof EnvSchema> | null = null;
 
 export function getEnv() {
   if (cached) return cached;
-  const parsed = EnvSchema.safeParse(process.env);
+  // Treat empty-string env vars as unset so `.optional()`/`.default()` apply
+  // instead of failing validation. A shipped `.env` commonly blanks optional
+  // values (e.g. UPSTASH_REDIS_REST_URL="") rather than omitting them.
+  const source = Object.fromEntries(
+    Object.entries(process.env).map(([k, v]) => [k, v === "" ? undefined : v]),
+  );
+  const parsed = EnvSchema.safeParse(source);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join(".")}: ${i.message}`)

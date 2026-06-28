@@ -57,14 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return me;
   }, []);
 
+  // Registration does NOT start a session — the account must verify its email
+  // before it can sign in. Returns the created (unverified) profile.
   const register = useCallback(async (input: RegisterInput) => {
-    const { user: me, accessToken } = await api<{ user: UserProfile; accessToken: string }>(
-      "/auth/register",
-      { method: "POST", body: input, auth: false },
-    );
-    setAccessToken(accessToken);
-    setUser(me);
-    setStatus("authenticated");
+    const { user: me } = await api<{ user: UserProfile }>("/auth/register", {
+      method: "POST",
+      body: input,
+      auth: false,
+    });
     return me;
   }, []);
 

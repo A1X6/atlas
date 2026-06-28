@@ -7,9 +7,9 @@
  * globals.css.
  */
 
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, Minus } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button as SButton } from "@/src/components/ui/button";
 import { Input as SInput } from "@/src/components/ui/input";
@@ -94,6 +94,41 @@ export const Textarea = forwardRef<
       className={cn("bg-surface", className)}
       {...rest}
     />
+  );
+});
+
+// ── Checkbox ──────────────────────────────────────────────────────────────────
+// 18px square: accent fill + checkmark when checked, dash when indeterminate,
+// surface + 1.5px border otherwise (per design spec §2.4).
+export const Checkbox = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { indeterminate?: boolean }
+>(function Checkbox({ className, indeterminate, ...rest }, ref) {
+  const innerRef = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => innerRef.current!, []);
+  useEffect(() => {
+    if (innerRef.current) innerRef.current.indeterminate = Boolean(indeterminate);
+  }, [indeterminate]);
+  return (
+    <span className="relative inline-flex h-[18px] w-[18px] shrink-0 align-middle">
+      <input
+        ref={innerRef}
+        type="checkbox"
+        className={cn(
+          "peer h-[18px] w-[18px] cursor-pointer appearance-none rounded-[5px] border-[1.5px] border-border-strong bg-surface transition-colors checked:border-accent checked:bg-accent indeterminate:border-accent indeterminate:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+          className,
+        )}
+        {...rest}
+      />
+      <Check
+        strokeWidth={3.5}
+        className="pointer-events-none absolute inset-0 m-auto hidden h-3 w-3 text-on-accent peer-checked:block peer-indeterminate:hidden"
+      />
+      <Minus
+        strokeWidth={3.5}
+        className="pointer-events-none absolute inset-0 m-auto hidden h-3 w-3 text-on-accent peer-indeterminate:block"
+      />
+    </span>
   );
 });
 

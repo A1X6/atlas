@@ -134,6 +134,20 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Tailwind v4 changed the default `border`/`divide` color from gray-200 to
+   `currentColor` (near-black text color). Restore a sensible default using the
+   Atlas soft border token, so bare `border` utilities in shadcn primitives
+   (Card, outline Button, Dialog) render the design's border instead of black. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { 0% { background-position: -460px 0; } 100% { background-position: 460px 0; } }
 

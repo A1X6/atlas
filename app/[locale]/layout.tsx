@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { routing } from "@/src/i18n/routing";
+import { buildAlternates } from "@/src/lib/seo";
 import { Providers } from "@/src/lib/providers";
 import { Toaster } from "@/src/components/ui/sonner";
 
@@ -30,10 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title: { default: t("title"), template: "%s · Atlas" },
     description: t("description"),
     applicationName: "Atlas",
-    alternates: {
-      canonical: `/${locale}`,
-      languages: { en: "/en", ar: "/ar" },
-    },
+    alternates: buildAlternates(locale, ""),
     openGraph: {
       type: "website",
       siteName: "Atlas",

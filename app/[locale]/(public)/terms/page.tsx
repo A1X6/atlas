@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { buildAlternates } from "@/src/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -11,10 +12,7 @@ export async function generateMetadata({
   return {
     title: t("termsMetaTitle"),
     description: t("termsMetaDescription"),
-    alternates: {
-      canonical: `/${locale}/terms`,
-      languages: { en: "/en/terms", ar: "/ar/terms" },
-    },
+    alternates: buildAlternates(locale, "/terms"),
   };
 }
 

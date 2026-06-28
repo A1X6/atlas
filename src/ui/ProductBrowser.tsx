@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { api } from "@/src/lib/api";
+import { PackageOpen, SearchX, TriangleAlert } from "lucide-react";
+import { api, ApiError } from "@/src/lib/api";
 import type { Product } from "@/src/lib/types";
 import { ProductCard } from "@/src/ui/ProductCard";
 
@@ -15,6 +16,7 @@ export function ProductBrowser() {
 
   const {
     data,
+    error,
     isLoading,
     isError,
     refetch,
@@ -46,6 +48,7 @@ export function ProductBrowser() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
           className="h-9 w-full max-w-xs rounded-lg border border-border-strong bg-surface px-3 text-sm text-text outline-none focus:border-accent"
         />
       </div>
@@ -65,14 +68,35 @@ export function ProductBrowser() {
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-danger-bd bg-surface p-10 text-center">
-          <h2 className="text-base font-semibold text-text">{t("fetchErrorTitle")}</h2>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-danger-bd bg-danger-soft text-danger">
+            <TriangleAlert className="h-6 w-6" />
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-text">
+            {t("fetchErrorTitle")}
+            {error instanceof ApiError && (
+              <span className="ms-2 font-mono text-[13px] font-normal text-text-3">
+                ({error.status})
+              </span>
+            )}
+          </h2>
           <p className="mt-1 text-sm text-text-2">{t("fetchErrorBody")}</p>
-          <button
-            onClick={() => refetch()}
-            className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
-          >
-            {t("retry")}
-          </button>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              onClick={() => refetch()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
+            >
+              {t("retry")}
+            </button>
+            {/* JSON health endpoint, not an app page — open in a new tab. */}
+            <a
+              href="/api/v1/health"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-2 hover:bg-surface-2"
+            >
+              {t("statusPage")}
+            </a>
+          </div>
         </div>
       ) : items.length > 0 ? (
         <>
@@ -93,9 +117,26 @@ export function ProductBrowser() {
             </div>
           )}
         </>
+      ) : q ? (
+        <div className="rounded-xl border border-border bg-surface p-10 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-surface-3 text-text-3">
+            <SearchX className="h-6 w-6" />
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-text">{t("noResultsTitle", { q })}</h2>
+          <p className="mt-1 text-sm text-text-2">{t("noResultsBody")}</p>
+          <button
+            onClick={() => setQ("")}
+            className="mt-4 rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-2 hover:bg-surface-2"
+          >
+            {t("clearFilters")}
+          </button>
+        </div>
       ) : (
         <div className="rounded-xl border border-border bg-surface p-10 text-center">
-          <h2 className="text-base font-semibold text-text">{t("emptyTitle")}</h2>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-border-strong text-text-3">
+            <PackageOpen className="h-6 w-6" />
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-text">{t("emptyTitle")}</h2>
           <p className="mt-1 text-sm text-text-2">{t("emptyBody")}</p>
         </div>
       )}

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { updateAccountSchema } from "@/src/server/validation/account-schemas";
+import {
+  updateAccountSchema,
+  requestPhoneCodeSchema,
+  confirmPhoneSchema,
+} from "@/src/server/validation/account-schemas";
 import { adminUpdateUserSchema } from "@/src/server/validation/user-admin-schemas";
 import { productFeedSchema } from "@/src/server/validation/product-schemas";
 import {
@@ -43,6 +47,22 @@ describe("productFeedSchema", () => {
   it("rejects a non-uuid cursor and an oversized limit", () => {
     expect(productFeedSchema.safeParse({ cursor: "abc" }).success).toBe(false);
     expect(productFeedSchema.safeParse({ limit: 999 }).success).toBe(false);
+  });
+});
+
+describe("phone verification schemas", () => {
+  it("requestPhoneCodeSchema needs a country code and number", () => {
+    expect(requestPhoneCodeSchema.safeParse({ countryCode: "+44", number: "7700 900812" }).success).toBe(true);
+    expect(requestPhoneCodeSchema.safeParse({ countryCode: "", number: "7700 900812" }).success).toBe(false);
+    expect(requestPhoneCodeSchema.safeParse({ countryCode: "+44", number: "12" }).success).toBe(false);
+  });
+
+  it("confirmPhoneSchema requires a 6-digit code", () => {
+    const base = { countryCode: "+44", number: "7700 900812" };
+    expect(confirmPhoneSchema.safeParse({ ...base, code: "123456" }).success).toBe(true);
+    expect(confirmPhoneSchema.safeParse({ ...base, code: "12345" }).success).toBe(false);
+    expect(confirmPhoneSchema.safeParse({ ...base, code: "abcdef" }).success).toBe(false);
+    expect(confirmPhoneSchema.safeParse({ ...base, code: "1234567" }).success).toBe(false);
   });
 });
 

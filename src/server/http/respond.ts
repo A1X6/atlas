@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ZodError } from "zod";
+import * as Sentry from "@sentry/nextjs";
 import { AppError } from "./errors";
 import en from "@/messages/en.json";
 import ar from "@/messages/ar.json";
@@ -79,7 +80,9 @@ export async function fail(error: unknown) {
     );
   }
 
-  // Unknown/unexpected — never expose internals to the client.
+  // Unknown/unexpected — never expose internals to the client. Report to Sentry
+  // (inert without a DSN) and log for local visibility.
+  Sentry.captureException(error);
   console.error("Unhandled API error:", error);
   return NextResponse.json(
     { error: { code: "INTERNAL_ERROR", message: lookup(locale, "errors", "INTERNAL_ERROR") } },

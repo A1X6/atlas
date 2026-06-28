@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/src/i18n/navigation";
+import { absoluteUrl, buildAlternates } from "@/src/lib/seo";
 import { Button } from "@/src/ui/primitives";
 
 export async function generateMetadata({
@@ -13,10 +14,7 @@ export async function generateMetadata({
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
-    alternates: {
-      canonical: `/${locale}`,
-      languages: { en: "/en", ar: "/ar" },
-    },
+    alternates: buildAlternates(locale, ""),
   };
 }
 
@@ -36,8 +34,37 @@ export default async function HomePage({
     { title: t("feature4Title"), body: t("feature4Body") },
   ];
 
+  // Site-level structured data for richer search presentation.
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Atlas",
+      url: absoluteUrl(`/${locale}`),
+      logo: absoluteUrl("/icon.svg"),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Atlas",
+      url: absoluteUrl(`/${locale}`),
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: absoluteUrl(`/${locale}/products?q={search_term_string}`),
+        },
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ];
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border">
         <div

@@ -8,6 +8,9 @@
 export type ErrorCode =
   | "VALIDATION_ERROR"
   | "UNAUTHORIZED"
+  | "EMAIL_NOT_VERIFIED"
+  | "PHONE_NOT_VERIFIED"
+  | "ACCOUNT_LOCKED"
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
@@ -41,9 +44,36 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+/**
+ * Raised when a login's credentials are correct but the email used hasn't been
+ * verified yet. Distinct from UNAUTHORIZED so the client can prompt the user to
+ * verify / resend rather than re-enter their password. Only thrown after a
+ * successful password check, so it doesn't enable account enumeration.
+ */
+export class EmailNotVerifiedError extends AppError {
+  constructor(message = "Please verify your email address before signing in") {
+    super(403, "EMAIL_NOT_VERIFIED", message);
+  }
+}
+
 export class ForbiddenError extends AppError {
   constructor(message = "You do not have permission to perform this action") {
     super(403, "FORBIDDEN", message);
+  }
+}
+
+/** Raised when an action requires a phone number that hasn't been SMS-verified
+ *  (e.g. making an unverified number your primary). */
+export class PhoneNotVerifiedError extends AppError {
+  constructor(message = "Verify this phone number by SMS before making it your primary") {
+    super(400, "PHONE_NOT_VERIFIED", message);
+  }
+}
+
+/** Raised when an account is temporarily locked after too many failed logins. */
+export class AccountLockedError extends AppError {
+  constructor(message = "Too many failed attempts. This account is temporarily locked.") {
+    super(403, "ACCOUNT_LOCKED", message);
   }
 }
 

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -7,9 +8,16 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 // script (anti-flash) and Tailwind's injected styles; everything else is locked to
 // 'self' plus the image hosts we use. (A nonce-based CSP via proxy is the stricter
 // future upgrade — noted in SECURITY.md.)
+// React's dev build uses eval() for debugging (Turbopack/HMR); production never
+// does. Allow 'unsafe-eval' only in development so the prod CSP stays strict.
+const isDev = process.env.NODE_ENV !== "production";
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://cdn.dummyjson.com https://i.dummyjson.com https://*.public.blob.vercel-storage.com",
   "font-src 'self' https://fonts.gstatic.com",
@@ -44,4 +52,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+// Sentry build-time wrapper. Without an auth token/org/project it simply skips
+// source-map upload; the SDK itself stays inert until a DSN is provided.
+export default withSentryConfig(withNextIntl(nextConfig), {
+  silent: !process.env.CI,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Tunnel browser events through our own origin to dodge ad-blockers.
+  tunnelRoute: "/monitoring",
+});

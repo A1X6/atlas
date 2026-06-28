@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
 export default defineConfig({
@@ -7,6 +7,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./test/setup.ts"],
     include: ["test/**/*.test.ts"],
+    // Integration tests hit the real DB and run via vitest.integration.config.ts.
+    exclude: [...configDefaults.exclude, "test/integration/**"],
   },
   resolve: {
     alias: {

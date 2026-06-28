@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import Image from "next/image";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { ImageIcon, Pencil, Trash2, TriangleAlert } from "lucide-react";
 import { api } from "@/src/lib/api";
 import { useErrorMessage } from "@/src/lib/useErrorMessage";
+import { cn } from "@/src/lib/utils";
 import type { Paginated, Product, ProductStatus } from "@/src/lib/types";
-import { Button, Input, Label, StatusBadge, Spinner } from "@/src/ui/primitives";
+import { Button, Checkbox, Input, Label, StatusBadge } from "@/src/ui/primitives";
+import { DataTable } from "@/src/ui/DataTable";
+import { Pagination } from "@/src/ui/Pagination";
 import {
   Sheet,
   SheetContent,
@@ -21,13 +27,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/src/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
+
+const STATUS_OPTIONS: ProductStatus[] = ["PUBLISHED", "DRAFT", "OUT_OF_STOCK"];
+const STATUS_KEYS: Record<ProductStatus, string> = {
+  PUBLISHED: "status_published",
+  DRAFT: "status_draft",
+  OUT_OF_STOCK: "status_out_of_stock",
+};
+
+/** Small product image with a graceful placeholder when none is set. */
+function Thumb({ src, alt, size = 36 }: { src: string | null; alt: string; size?: number }) {
+  if (!src) {
+    return (
+      <span
+        className="flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-3 text-text-3"
+        style={{ width: size, height: size }}
+      >
+        <ImageIcon className="h-4 w-4" />
+      </span>
+    );
+  }
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={size}
+      height={size}
+      className="shrink-0 rounded-lg border border-border object-cover"
+      style={{ width: size, height: size }}
+      unoptimized
+    />
+  );
+}
 
 type DraftProduct = {
   id?: string;
@@ -37,6 +68,7 @@ type DraftProduct = {
   status: ProductStatus;
   stock: string;
   description: string;
+  imageUrl: string;
 };
 
 const emptyDraft: DraftProduct = {
@@ -46,6 +78,7 @@ const emptyDraft: DraftProduct = {
   status: "DRAFT",
   stock: "0",
   description: "",
+  imageUrl: "",
 };
 
 export function Management() {
@@ -86,6 +119,7 @@ export function Management() {
         status: d.status,
         stock: parseInt(d.stock || "0", 10),
         description: d.description,
+        imageUrl: d.imageUrl.trim() || undefined,
       };
       if (d.id) return api(`/products/${d.id}`, { method: "PATCH", body });
       return api("/products", { method: "POST", body });
@@ -128,13 +162,136 @@ export function Management() {
     onError: () => toast.error(t("syncError")),
   });
 
-  const toggleSelect = (id: string) =>
+  const toggleSelect = useCallback(
+    (id: string) =>
+      setSelected((s) => {
+        const n = new Set(s);
+        if (n.has(id)) n.delete(id);
+        else n.add(id);
+        return n;
+      }),
+    [],
+  );
+
+  const toggleAllOnPage = useCallback((items: Product[], check: boolean) => {
     setSelected((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
+      for (const it of items) {
+        if (check) n.add(it.id);
+        else n.delete(it.id);
+      }
       return n;
     });
+  }, []);
+
+  const columns = useMemo<ColumnDef<Product>[]>(
+    () => [
+      {
+        id: "select",
+        meta: { thClass: "w-10 px-4", tdClass: "px-4" },
+        header: () => {
+          const items = data?.items ?? [];
+          const all = items.length > 0 && items.every((p) => selected.has(p.id));
+          const some = items.some((p) => selected.has(p.id));
+          return (
+            <Checkbox
+              aria-label={t("selectAll")}
+              checked={all}
+              indeterminate={some && !all}
+              onChange={(e) => toggleAllOnPage(items, e.target.checked)}
+            />
+          );
+        },
+        cell: ({ row }) => (
+          <Checkbox
+            checked={selected.has(row.original.id)}
+            onChange={() => toggleSelect(row.original.id)}
+            aria-label={t("selectRow", { name: row.original.name })}
+          />
+        ),
+      },
+      {
+        id: "product",
+        header: t("colProduct"),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Thumb src={row.original.imageUrl} alt={row.original.name} />
+            <div className="min-w-0">
+              <div className="truncate font-medium text-text">{row.original.name}</div>
+              <div className="font-mono text-[11px] text-text-3">{row.original.sku ?? "—"}</div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "price",
+        header: t("colPrice"),
+        meta: { tdClass: "font-medium text-text" },
+        cell: ({ row }) =>
+          format.number(row.original.priceCents / 100, {
+            style: "currency",
+            currency: row.original.currency,
+          }),
+      },
+      {
+        id: "category",
+        header: t("colCategory"),
+        meta: { thClass: "hidden sm:table-cell", tdClass: "hidden capitalize text-text-2 sm:table-cell" },
+        cell: ({ row }) => row.original.category,
+      },
+      {
+        id: "status",
+        header: t("colStatus"),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        id: "actions",
+        header: t("colActions"),
+        meta: { thClass: "px-4 text-end", tdClass: "px-4 text-end" },
+        cell: ({ row }) => {
+          const p = row.original;
+          return (
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() =>
+                  setDraft({
+                    id: p.id,
+                    name: p.name,
+                    priceDollars: (p.priceCents / 100).toString(),
+                    category: p.category,
+                    status: p.status,
+                    stock: String(p.stock),
+                    description: p.description,
+                    imageUrl: p.imageUrl ?? "",
+                  })
+                }
+                aria-label={t("edit")}
+                title={t("edit")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-strong text-text-2 hover:border-accent hover:text-accent"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setToDelete(p)}
+                aria-label={t("delete")}
+                title={t("delete")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-strong text-text-2 hover:border-danger hover:text-danger"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        },
+      },
+    ],
+    [t, format, selected, toggleSelect, toggleAllOnPage, data],
+  );
+
+  const table = useReactTable({
+    data: data?.items ?? [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -155,6 +312,7 @@ export function Management() {
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
           placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
           className="h-9 w-full max-w-xs rounded-lg border border-border-strong bg-surface px-3 text-sm text-text outline-none focus:border-accent"
         />
       </div>
@@ -172,66 +330,23 @@ export function Management() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {isLoading ? (
-          <div className="flex h-48 items-center justify-center"><Spinner className="h-5 w-5 text-accent" /></div>
+          <div className="divide-y divide-border">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                <span className="skeleton h-[18px] w-[18px] rounded-[5px]" />
+                <span className="skeleton h-9 w-9 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton h-3 w-2/5 rounded" />
+                  <div className="skeleton h-2.5 w-1/4 rounded" />
+                </div>
+                <span className="skeleton h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
         ) : isError ? (
           <div className="p-10 text-center text-sm text-text-2">{t("fetchError")}</div>
         ) : data && data.items.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-2 text-start text-[11px] uppercase tracking-wide text-text-2">
-                <th className="w-10 px-4 py-2.5" />
-                <th className="px-2 py-2.5 font-semibold">{t("colProduct")}</th>
-                <th className="px-2 py-2.5 font-semibold">{t("colPrice")}</th>
-                <th className="hidden px-2 py-2.5 font-semibold sm:table-cell">{t("colCategory")}</th>
-                <th className="px-2 py-2.5 font-semibold">{t("colStatus")}</th>
-                <th className="px-4 py-2.5 text-end font-semibold">{t("colActions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((p) => (
-                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface-2">
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(p.id)}
-                      onChange={() => toggleSelect(p.id)}
-                      aria-label={t("selectRow", { name: p.name })}
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <div className="font-medium text-text">{p.name}</div>
-                    <div className="font-mono text-[11px] text-text-3">{p.sku ?? "—"}</div>
-                  </td>
-                  <td className="px-2 py-3 font-medium text-text">
-                    {format.number(p.priceCents / 100, { style: "currency", currency: p.currency })}
-                  </td>
-                  <td className="hidden px-2 py-3 capitalize text-text-2 sm:table-cell">{p.category}</td>
-                  <td className="px-2 py-3"><StatusBadge status={p.status} /></td>
-                  <td className="px-4 py-3 text-end">
-                    <button
-                      onClick={() =>
-                        setDraft({
-                          id: p.id,
-                          name: p.name,
-                          priceDollars: (p.priceCents / 100).toString(),
-                          category: p.category,
-                          status: p.status,
-                          stock: String(p.stock),
-                          description: p.description,
-                        })
-                      }
-                      className="me-3 text-accent hover:underline"
-                    >
-                      {t("edit")}
-                    </button>
-                    <button onClick={() => setToDelete(p)} className="text-danger hover:underline">
-                      {t("delete")}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable table={table} label={t("title")} />
         ) : (
           <div className="p-10 text-center">
             <h2 className="text-base font-semibold text-text">{t("emptyTitle")}</h2>
@@ -245,10 +360,7 @@ export function Management() {
           <span className="text-sm text-text-2">
             {t("pageInfo", { page: data.page, totalPages: data.totalPages, total: data.total })}
           </span>
-          <div className="flex gap-2">
-            <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="h-8 rounded-lg border border-border-strong bg-surface px-3 text-sm disabled:opacity-40">{isRtl ? "›" : "‹"}</button>
-            <button disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)} className="h-8 rounded-lg border border-border-strong bg-surface px-3 text-sm disabled:opacity-40">{isRtl ? "‹" : "›"}</button>
-          </div>
+          <Pagination page={page} totalPages={data.totalPages} onChange={setPage} />
         </div>
       )}
 
@@ -265,6 +377,18 @@ export function Management() {
                 onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(draft); }}
               >
                 <div>
+                  <Label>{t("fieldImage")}</Label>
+                  <div className="flex items-center gap-3">
+                    <Thumb src={draft.imageUrl.trim() || null} alt={draft.name} size={48} />
+                    <Input
+                      value={draft.imageUrl}
+                      onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })}
+                      placeholder={t("imageHint")}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div>
                   <Label>{t("fieldName")}</Label>
                   <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
                 </div>
@@ -278,26 +402,29 @@ export function Management() {
                     <Input type="number" min="0" value={draft.stock} onChange={(e) => setDraft({ ...draft, stock: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>{t("fieldCategory")}</Label>
-                    <Input value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} required />
-                  </div>
-                  <div>
-                    <Label>{t("fieldStatus")}</Label>
-                    <Select
-                      value={draft.status}
-                      onValueChange={(v) => setDraft({ ...draft, status: v as ProductStatus })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PUBLISHED">{t("status_published")}</SelectItem>
-                        <SelectItem value="DRAFT">{t("status_draft")}</SelectItem>
-                        <SelectItem value="OUT_OF_STOCK">{t("status_out_of_stock")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div>
+                  <Label>{t("fieldCategory")}</Label>
+                  <Input value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} required />
+                </div>
+                <div>
+                  <Label>{t("fieldStatus")}</Label>
+                  <div className="flex gap-1 rounded-lg border border-border-strong p-1">
+                    {STATUS_OPTIONS.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, status: s })}
+                        aria-pressed={draft.status === s}
+                        className={cn(
+                          "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                          draft.status === s
+                            ? "bg-accent text-on-accent"
+                            : "text-text-2 hover:bg-surface-2 hover:text-text",
+                        )}
+                      >
+                        {t(STATUS_KEYS[s])}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div>
@@ -323,10 +450,13 @@ export function Management() {
         <DialogContent className="sm:max-w-sm">
           {toDelete && (
             <>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-danger-bd bg-danger-soft text-danger">
+                <TriangleAlert className="h-6 w-6" />
+              </div>
               <DialogHeader>
-                <DialogTitle>{t("deleteTitle", { name: toDelete.name })}</DialogTitle>
+                <DialogTitle className="text-center">{t("deleteTitle", { name: toDelete.name })}</DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-text-2">{t("deleteBody")}</p>
+              <p className="text-center text-sm text-text-2">{t("deleteBody")}</p>
               <DialogFooter>
                 <Button variant="secondary" className="flex-1" onClick={() => setToDelete(null)}>{t("cancel")}</Button>
                 <Button variant="danger" className="flex-1" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(toDelete.id)}>{t("delete")}</Button>

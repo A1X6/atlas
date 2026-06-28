@@ -24,8 +24,15 @@ See [I18N.md](./I18N.md).
 
 - **Metadata API**: per-page `generateMetadata` / static `metadata` with titles (templated `%s · Atlas`),
   descriptions, and **canonical URLs**. Open Graph + Twitter card defaults in the root layout.
-- **Structured data**: JSON-LD **Product** schema on each product detail page (name, description,
-  category, SKU, image, price + availability `Offer`).
+  `metadataBase` is set at the root layout so OG/canonical URLs resolve absolute.
+- **`hreflang` incl. `x-default`**: a shared helper (`src/lib/seo.ts → buildAlternates`) emits
+  per-locale `canonical` + `languages` (`en`, `ar`, and `x-default` → default locale) on every public
+  page and in `sitemap.ts`.
+- **Default social image + favicon**: generated `app/opengraph-image.tsx` (1200×630, `next/og`) used by
+  every public page that doesn't set its own, and `app/icon.svg` favicon.
+- **Structured data (JSON-LD)**: **Organization** + **WebSite** (with `SearchAction`) on the home page;
+  **Product** (name, description, category, SKU, image, price + availability `Offer`) and a
+  **BreadcrumbList** on each product detail page.
 - **`sitemap.xml`** (`app/sitemap.ts`): static routes + published product URLs (degrades gracefully if
   the DB is unavailable).
 - **`robots.txt`** (`app/robots.ts`): allows public pages, disallows `/app/`, `/login`, `/register`,

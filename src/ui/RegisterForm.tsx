@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { MailCheck } from "lucide-react";
 import { Link, useRouter } from "@/src/i18n/navigation";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
@@ -33,6 +34,7 @@ export function RegisterForm() {
   const em = useErrorMessage();
   const router = useRouter();
   const { register } = useAuth();
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -88,6 +90,8 @@ export function RegisterForm() {
       toast.error(t("passwordsDoNotMatch"));
       return;
     }
+    const primaryEmail =
+      (emails.find((e) => e.isPrimary) ?? emails[0])?.address.trim() || "";
     setSubmitting(true);
     try {
       await register({
@@ -103,11 +107,29 @@ export function RegisterForm() {
         emails: emails.filter((e) => e.address.trim()),
         phones: phones.filter((p) => p.number.trim()),
       });
-      router.push("/app");
+      // No session is started — prompt the user to verify their email, then sign in.
+      setRegisteredEmail(primaryEmail);
     } catch (err) {
       setSubmitting(false);
       toast.error(em(err, t("registerError")));
     }
+  }
+
+  if (registeredEmail) {
+    return (
+      <Card className="my-8 w-full max-w-md p-8 text-center shadow-lg">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent">
+          <MailCheck className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 text-xl font-semibold text-text">{t("checkEmailTitle")}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-text-2">
+          {t("checkEmailBody", { email: registeredEmail })}
+        </p>
+        <Button className="mt-6 w-full" onClick={() => router.push("/login")}>
+          {t("goToSignIn")}
+        </Button>
+      </Card>
+    );
   }
 
   return (

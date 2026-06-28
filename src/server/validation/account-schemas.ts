@@ -16,3 +16,20 @@ export const updateAccountSchema = z.object({
 });
 
 export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
+
+/** Identify one of the signed-in user's phone numbers for SMS verification. */
+export const requestPhoneCodeSchema = z.object({
+  countryCode: z.string().trim().min(1, "phone_country_required").max(6),
+  number: z.string().trim().min(3, "phone_number_invalid").max(32),
+});
+
+/** Submit an SMS code to verify a phone number. */
+export const confirmPhoneSchema = requestPhoneCodeSchema.extend({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "otp_invalid"),
+});
+
+export type RequestPhoneCodeInput = z.infer<typeof requestPhoneCodeSchema>;
+export type ConfirmPhoneInput = z.infer<typeof confirmPhoneSchema>;

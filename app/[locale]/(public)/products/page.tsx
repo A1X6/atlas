@@ -4,6 +4,7 @@ import { Link } from "@/src/i18n/navigation";
 import { listProducts, listCategories } from "@/src/server/services/product-service";
 import { productQuerySchema } from "@/src/server/validation/product-schemas";
 import { ProductCard } from "@/src/ui/ProductCard";
+import { buildAlternates } from "@/src/lib/seo";
 import type { Product } from "@/src/lib/types";
 
 export async function generateMetadata({
@@ -16,10 +17,7 @@ export async function generateMetadata({
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
-    alternates: {
-      canonical: `/${locale}/products`,
-      languages: { en: "/en/products", ar: "/ar/products" },
-    },
+    alternates: buildAlternates(locale, "/products"),
   };
 }
 

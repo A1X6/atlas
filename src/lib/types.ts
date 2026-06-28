@@ -4,7 +4,7 @@ export type Role = "ADMIN" | "USER";
 export type ProductStatus = "PUBLISHED" | "DRAFT" | "OUT_OF_STOCK";
 
 export type EmailDTO = { id: string; address: string; isPrimary: boolean; verified: boolean };
-export type PhoneDTO = { id: string; countryCode: string; number: string; isPrimary: boolean };
+export type PhoneDTO = { id: string; countryCode: string; number: string; isPrimary: boolean; verified: boolean };
 
 export type UserProfile = {
   id: string;

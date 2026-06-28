@@ -1,5 +1,11 @@
 import "server-only";
-import { ConflictError, UnauthorizedError } from "@/src/server/http/errors";
+import {
+  AccountLockedError,
+  ConflictError,
+  EmailNotVerifiedError,
+  UnauthorizedError,
+} from "@/src/server/http/errors";
+import { isLocked, registerFailedAttempt } from "@/src/server/auth/lockout";
 import { hashPassword, verifyPassword } from "@/src/server/auth/password";
 import {
   createRefreshToken,
@@ -16,6 +22,7 @@ import {
   createVerificationToken,
   consumeVerificationToken,
 } from "@/src/server/services/token-service";
+import { requestPhoneVerification } from "@/src/server/services/phone-service";
 
 export type RequestContext = { userAgent?: string | null; ip?: string | null };
 
@@ -48,7 +55,14 @@ async function issueTokens(
   return { accessToken, refresh };
 }
 
-export async function registerUser(input: RegisterInput, ctx: RequestContext): Promise<Issued> {
+export type Registered = { user: Awaited<ReturnType<typeof users.getUserProfile>> };
+
+/**
+ * Create an account but DO NOT start a session: the user must verify their email
+ * before they can sign in (consistent with the login gate). We still dispatch
+ * the verification email + phone SMS here.
+ */
+export async function registerUser(input: RegisterInput): Promise<Registered> {
   const addresses = input.emails.map((e) => e.address);
   const existing = await users.findAnyEmail(addresses);
   if (existing) {
@@ -77,16 +91,14 @@ export async function registerUser(input: RegisterInput, ctx: RequestContext): P
     })),
   });
 
-  const { accessToken, refresh } = await issueTokens(profile.id, profile.role, ctx);
+  // Fire verification for the new email + each phone; never fail registration if
+  // delivery fails. Phones are added unverified and confirmed via SMS code.
+  await Promise.allSettled([
+    sendEmailVerification(profile.id),
+    ...input.phones.map((p) => requestPhoneVerification(profile.id, p.countryCode, p.number)),
+  ]);
 
-  // Fire a verification email; never fail registration if mail delivery fails.
-  try {
-    await sendEmailVerification(profile.id);
-  } catch (e) {
-    console.error("Failed to send verification email:", e);
-  }
-
-  return { user: profile, accessToken, refresh };
+  return { user: profile };
 }
 
 export async function loginUser(input: LoginInput, ctx: RequestContext): Promise<Issued> {
@@ -97,8 +109,28 @@ export async function loginUser(input: LoginInput, ctx: RequestContext): Promise
     throw new UnauthorizedError("Invalid email or password");
   }
 
+  // Refuse a locked account before checking the password (an attacker who
+  // triggered the lock already knows the email exists).
+  if (isLocked(account.lockedUntil, Date.now())) throw new AccountLockedError();
+
   const valid = await verifyPassword(account.passwordHash, input.password);
-  if (!valid) throw new UnauthorizedError("Invalid email or password");
+  if (!valid) {
+    // Count the failure; lock the account once the threshold is reached.
+    const next = registerFailedAttempt(account.failedLoginAttempts, Date.now());
+    await users.setLoginState(account.id, next);
+    if (next.lockedUntil) throw new AccountLockedError();
+    throw new UnauthorizedError("Invalid email or password");
+  }
+
+  // Correct password → clear any accumulated failures.
+  if (account.failedLoginAttempts > 0 || account.lockedUntil) {
+    await users.setLoginState(account.id, { failedLoginAttempts: 0, lockedUntil: null });
+  }
+
+  // Require the email used to be verified. Only verified emails are usable login
+  // identities; unverified ones (e.g. newly added addresses) are dead until
+  // confirmed. Checked post-password so it can't be used to enumerate accounts.
+  if (!account.emailVerified) throw new EmailNotVerifiedError();
 
   const { accessToken, refresh } = await issueTokens(account.id, account.role, ctx);
   const profile = await users.getUserProfile(account.id);
@@ -161,16 +193,20 @@ export async function sendEmailVerification(userId: string): Promise<void> {
   const emails = await users.getUserEmails(userId);
   const target = emails.find((e) => !e.verified) ?? emails[0];
   if (!target || target.verified) return;
+  await sendEmailVerificationFor(userId, target.address);
+}
 
+/** Send a verification link for one specific email address owned by the user. */
+export async function sendEmailVerificationFor(userId: string, address: string): Promise<void> {
   const token = await createVerificationToken({
     userId,
     type: "EMAIL_VERIFY",
-    email: target.address,
+    email: address,
     ttlMs: EMAIL_VERIFY_TTL_MS,
   });
   const link = `${getEnv().APP_URL}/verify-email?token=${token}`;
   await sendEmail({
-    to: target.address,
+    to: address,
     subject: "Verify your Atlas email",
     text: `Welcome to Atlas! Confirm this email address:\n${link}\n\nThis link expires in 24 hours.`,
   });

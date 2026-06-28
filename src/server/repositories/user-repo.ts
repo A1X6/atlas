@@ -17,6 +17,12 @@ export type CreateUserData = {
   phones: { countryCode: string; number: string; isPrimary: boolean }[];
 };
 
+/** Canonical identity for a phone number (countryCode + number) used as a map
+ *  key when preserving verified status and as the OTP token's `phone` target. */
+export function phoneKey(countryCode: string, number: string): string {
+  return `${countryCode.trim()}|${number.trim()}`;
+}
+
 /** Ensure exactly one entry is marked primary (default to the first). */
 export function withSinglePrimary<T extends { isPrimary: boolean }>(items: T[]): T[] {
   let primarySeen = false;
@@ -38,9 +44,30 @@ export async function findAnyEmail(addresses: string[]) {
 export async function findUserByEmailForAuth(address: string) {
   const email = await prisma.email.findUnique({
     where: { address },
-    select: { user: { select: { id: true, role: true, passwordHash: true } } },
+    select: {
+      verified: true,
+      user: {
+        select: {
+          id: true,
+          role: true,
+          passwordHash: true,
+          failedLoginAttempts: true,
+          lockedUntil: true,
+        },
+      },
+    },
   });
-  return email?.user ?? null;
+  if (!email) return null;
+  // Surface the verification status of the *specific* email used to sign in.
+  return { ...email.user, emailVerified: email.verified };
+}
+
+/** Persist lockout counters after a failed/successful login. */
+export function setLoginState(
+  userId: string,
+  state: { failedLoginAttempts: number; lockedUntil: Date | null },
+) {
+  return prisma.user.update({ where: { id: userId }, data: state });
 }
 
 export async function createUser(data: CreateUserData) {
@@ -79,7 +106,7 @@ export const profileSelect = {
   avatarUrl: true,
   createdAt: true,
   emails: { select: { id: true, address: true, isPrimary: true, verified: true } },
-  phones: { select: { id: true, countryCode: true, number: true, isPrimary: true } },
+  phones: { select: { id: true, countryCode: true, number: true, isPrimary: true, verified: true } },
 } satisfies Prisma.UserSelect;
 
 export async function getUserProfile(userId: string) {

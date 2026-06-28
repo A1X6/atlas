@@ -24,6 +24,7 @@ enum ProductStatus {
 enum TokenType {
   EMAIL_VERIFY
   PASSWORD_RESET
+  PHONE_VERIFY
 }
 
 /// A user of the system. Login identity is resolved through the Email table
@@ -40,6 +41,9 @@ model User {
   avatarUrl    String?
   passwordHash String
   role         Role      @default(USER)
+  // Brute-force lockout: consecutive failed logins, and an optional lock expiry.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -58,6 +62,7 @@ model Phone {
   countryCode String
   number      String
   isPrimary   Boolean  @default(false)
+  verified    Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   @@index([userId])
@@ -118,10 +123,12 @@ model VerificationToken {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   email     String? // target address for EMAIL_VERIFY
+  phone     String? // target phone (countryCode + number) for PHONE_VERIFY
   type      TokenType
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
+  attempts  Int       @default(0) // wrong-code attempts for PHONE_VERIFY OTPs
   createdAt DateTime  @default(now())
 
   @@index([userId])

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
 import { useErrorMessage } from "@/src/lib/useErrorMessage";
-import type { UserProfile } from "@/src/lib/types";
+import type { UserProfile, PhoneDTO } from "@/src/lib/types";
 import { Button, Card, Input, Label, RoleBadge, Spinner } from "@/src/ui/primitives";
 
 type EmailRow = { address: string; isPrimary: boolean; verified?: boolean };
@@ -111,14 +111,9 @@ function AccountView({ user }: { user: UserProfile }) {
         </div>
         <div>
           <dt className="text-text-3">{t("phones")}</dt>
-          <dd className="mt-1 space-y-1">
+          <dd className="mt-1 space-y-2.5">
             {user.phones.map((p) => (
-              <div key={p.id} className="flex items-center gap-2">
-                <span className="text-text">
-                  {p.countryCode} {p.number}
-                </span>
-                {p.isPrimary && <Pill>{t("primary")}</Pill>}
-              </div>
+              <PhoneVerifyItem key={p.id} phone={p} />
             ))}
           </dd>
         </div>
@@ -386,6 +381,101 @@ function RowEditor<T extends { isPrimary: boolean }>({
           {t("add")}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One phone row in the read view: shows verified status and, for unverified
+ * numbers, an inline SMS-verification flow (send a code → enter it → confirm).
+ */
+function PhoneVerifyItem({ phone }: { phone: PhoneDTO }) {
+  const t = useTranslations("account");
+  const em = useErrorMessage();
+  const { refresh } = useAuth();
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  async function sendCode() {
+    setSending(true);
+    try {
+      await api("/account/phones/request-code", {
+        method: "POST",
+        body: { countryCode: phone.countryCode, number: phone.number },
+      });
+      setSent(true);
+    } catch (err) {
+      toast.error(em(err, t("codeSendError")));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function confirm() {
+    setConfirming(true);
+    try {
+      await api("/account/phones/confirm", {
+        method: "POST",
+        body: { countryCode: phone.countryCode, number: phone.number, code },
+      });
+      toast.success(t("phoneVerifiedToast"));
+      await refresh(); // reflect the now-verified status from the server
+    } catch (err) {
+      toast.error(em(err, t("verifyPhoneError")));
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-text">
+          {phone.countryCode} {phone.number}
+        </span>
+        {phone.isPrimary && <Pill>{t("primary")}</Pill>}
+        {phone.verified ? (
+          <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-medium text-success">
+            {t("verified")}
+          </span>
+        ) : (
+          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
+            {t("unverified")}
+          </span>
+        )}
+        {!phone.verified && !sent && (
+          <button
+            type="button"
+            onClick={sendCode}
+            disabled={sending}
+            className="text-xs font-medium text-accent hover:underline disabled:opacity-50"
+          >
+            {sending ? t("sendingCode") : t("verify")}
+          </button>
+        )}
+      </div>
+
+      {!phone.verified && sent && (
+        <div className="mt-2 ps-1">
+          <div className="flex items-center gap-2">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder={t("enterCode")}
+              aria-label={t("enterCode")}
+              className="w-44"
+            />
+            <Button size="sm" onClick={confirm} loading={confirming} disabled={code.length !== 6}>
+              {confirming ? t("verifyingCode") : t("confirmCode")}
+            </Button>
+          </div>
+          <p className="mt-1.5 text-[11px] text-text-3">{t("codeSentNotice")}</p>
+        </div>
+      )}
     </div>
   );
 }
