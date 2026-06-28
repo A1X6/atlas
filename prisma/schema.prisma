@@ -1,0 +1,136 @@
+// Atlas — Prisma 7 schema
+// Datasource URL is provided via prisma.config.ts (Prisma 7 convention).
+// Runtime uses the Neon serverless driver adapter (see src/server/db.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum ProductStatus {
+  PUBLISHED
+  DRAFT
+  OUT_OF_STOCK
+}
+
+enum TokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+/// A user of the system. Login identity is resolved through the Email table
+/// (a user may have multiple emails); one email is flagged primary.
+model User {
+  id           String    @id @default(uuid())
+  firstName    String
+  lastName     String
+  dateOfBirth  DateTime?
+  gender       String?
+  address      String?
+  country      String?
+  bio          String?
+  avatarUrl    String?
+  passwordHash String
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  phones             Phone[]
+  emails             Email[]
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+
+  @@index([role])
+}
+
+model Phone {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  countryCode String
+  number      String
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Email {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address   String   @unique
+  isPrimary Boolean  @default(false)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Hashed refresh tokens for rotation + revocation (we never store raw tokens).
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jti       String   @unique
+  tokenHash String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  slug        String        @unique
+  name        String
+  description String        @default("")
+  priceCents  Int
+  currency    String        @default("USD")
+  category    String
+  status      ProductStatus @default(DRAFT)
+  imageUrl    String?
+  sku         String?       @unique
+  stock       Int           @default(0)
+  externalId  String?       @unique // origin id when synced from the external API
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Single-use, hashed tokens for email verification and password reset.
+model VerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String? // target address for EMAIL_VERIFY
+  type      TokenType
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
+}

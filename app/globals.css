@@ -1,26 +1,159 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================
+   Atlas design tokens — light (:root) + dark (.dark).
+   Dark mode is toggled by next-themes adding the `.dark` class
+   to <html>. shadcn/ui semantic tokens are mapped onto the Atlas
+   palette so shadcn components inherit the Atlas look.
+   ============================================================ */
+
+/* Make Tailwind's `dark:` variant follow next-themes' `.dark` class. */
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* — Atlas raw tokens (light) — */
+  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
+  --border: #e7e9ee; --border-strong: #d7dae1;
+  --text: #15171c; --text-2: #576070; --text-3: #8a93a2;
+  --accent: #2563eb; --accent-hover: #1d4ed8; --accent-soft: #eaf2ff; --accent-line: #c2d9fb; --on-accent: #ffffff;
+  --success: #15803d; --success-soft: #e8f6ee; --success-bd: #bfe6cd;
+  --warning: #b45309; --warning-soft: #fbf1e3; --warning-bd: #f0dcb8;
+  --danger: #dc2626; --danger-hover: #b91c1c; --danger-soft: #fdeceb; --danger-bd: #f6cccc;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05);
+  --shadow: 0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.04);
+  --shadow-lg: 0 18px 40px -12px rgba(16,24,40,.22),0 4px 12px rgba(16,24,40,.06);
+  --ring-shadow: 0 0 0 3px rgba(37,99,235,.18);
+  --frame-bd: #e2e4ea;
+
+  /* — shadcn semantic tokens, mapped to Atlas (var() resolves lazily,
+       so these automatically adapt in .dark below) — */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--on-accent);
+  --secondary: var(--surface-3);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-3);
+  --muted-foreground: var(--text-2);
+  --accent-foreground: var(--on-accent);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --input: var(--border-strong);
+  --ring: var(--accent);
+  --radius: 0.75rem;
+  --chart-1: var(--accent);
+  --chart-2: var(--success);
+  --chart-3: var(--warning);
+  --chart-4: var(--danger);
+  --chart-5: var(--text-3);
 }
 
+.dark {
+  color-scheme: dark;
+
+  /* — Atlas raw tokens (dark); shadcn vars above re-resolve to these — */
+  --bg: #0b0c0f; --surface: #141519; --surface-2: #191b20; --surface-3: #1f2229;
+  --border: #262a31; --border-strong: #363c46;
+  --text: #e9eaed; --text-2: #a3abb8; --text-3: #6c7480;
+  --accent: #3b82f6; --accent-hover: #60a5fa; --accent-soft: #13233f; --accent-line: #28406e; --on-accent: #ffffff;
+  --success: #34d399; --success-soft: #10241b; --success-bd: #1f4736;
+  --warning: #fbbf24; --warning-soft: #241c0d; --warning-bd: #4a3a17;
+  --danger: #f87171; --danger-hover: #ef4444; --danger-soft: #2a1414; --danger-bd: #4d2222;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow: 0 1px 3px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.4);
+  --shadow-lg: 0 20px 48px -12px rgba(0,0,0,.7),0 4px 12px rgba(0,0,0,.4);
+  --ring-shadow: 0 0 0 3px rgba(59,130,246,.30);
+  --frame-bd: #22252c;
+}
+
+/* Map tokens to Tailwind v4 utilities. */
 @theme inline {
+  /* Atlas utilities (bg-surface, text-text-2, border-border-strong, …) */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-bd: var(--success-bd);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-bd: var(--warning-bd);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-bd: var(--danger-bd);
+
+  /* shadcn utilities (bg-background, bg-primary, border-input, ring-ring, …) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { background-position: -460px 0; } 100% { background-position: 460px 0; } }
 
+html, body { margin: 0; padding: 0; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* Arabic locale uses an Arabic-capable font (set via next/font variable). */
+html[lang="ar"] body {
+  font-family: var(--font-arabic), var(--font-sans), 'Segoe UI', system-ui, sans-serif;
+}
+::selection { background: rgba(37,99,235,.20); }
+
+/* Shimmer helper for skeletons */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 37%, var(--surface-3) 63%);
+  background-size: 920px 100%;
+  animation: shimmer 1.4s infinite linear;
 }
