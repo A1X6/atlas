@@ -85,6 +85,9 @@ Open `http://localhost:3000`, browse the catalogue, then sign in with a test acc
 
 ## Deploy to Vercel
 
+> Full step-by-step go-live checklist (services, env, post-deploy + SEO verification):
+> [`docs/PRODUCTION-CHECKLIST.md`](./docs/PRODUCTION-CHECKLIST.md).
+
 1. Push this repo to GitHub and import it in Vercel.
 2. Add the **Neon**, **Vercel Blob**, and **Upstash Redis** integrations from the Vercel
    Marketplace — they auto-inject `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, and the Upstash vars.
