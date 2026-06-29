@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="mt-auto flex items-center gap-2.5 border-t border-border px-2 pt-3">
-          <span className="h-8 w-8 flex-none rounded-full bg-gradient-to-br from-accent to-[#60a5fa]" />
+          <span className="h-8 w-8 flex-none rounded-full bg-linear-to-br from-accent to-[#60a5fa]" />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[12.5px] font-medium text-text">
               {user.firstName} {user.lastName}

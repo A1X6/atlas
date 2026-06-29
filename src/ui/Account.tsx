@@ -71,7 +71,7 @@ function AccountView({ user }: { user: UserProfile }) {
     <Card className="p-6">
       <div className="flex items-center gap-4">
         <span
-          className="h-16 w-16 flex-none rounded-full bg-gradient-to-br from-accent to-[#60a5fa] bg-cover"
+          className="h-16 w-16 flex-none rounded-full bg-linear-to-br from-accent to-[#60a5fa] bg-cover"
           style={user.avatarUrl ? { backgroundImage: `url(${user.avatarUrl})` } : undefined}
         />
         <div>

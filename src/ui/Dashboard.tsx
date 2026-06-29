@@ -99,7 +99,7 @@ export function Dashboard() {
           <ul className="space-y-3">
             {data.recentActivity.map((a) => (
               <li key={a.id} className="flex items-center gap-3">
-                <span className="h-7 w-7 flex-none rounded-full bg-gradient-to-br from-accent to-[#60a5fa]" />
+                <span className="h-7 w-7 flex-none rounded-full bg-linear-to-br from-accent to-[#60a5fa]" />
                 <span className="flex-1 text-sm text-text-2">{t("activityAdded", { name: a.name })}</span>
                 <span className="font-mono text-[11px] text-text-3">
                   {format.relativeTime(new Date(a.createdAt), now)}
