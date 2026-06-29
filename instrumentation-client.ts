@@ -7,6 +7,12 @@ Sentry.init({
   dsn,
   enabled: Boolean(dsn),
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  sendDefaultPii: true,
+  enableLogs: true,
+  // Session Replay (Sentry default masks all text + inputs, so PII stays hidden).
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+  integrations: [Sentry.replayIntegration()],
 });
 
 // Lets Sentry trace client-side navigations in the App Router.

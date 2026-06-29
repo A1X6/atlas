@@ -58,6 +58,10 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   silent: !process.env.CI,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
+  // Uploads source maps for readable production stack traces (no-op without a token).
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Upload more client bundles so client-side stack traces resolve cleanly.
+  widenClientFileUpload: true,
   // Tunnel browser events through our own origin to dodge ad-blockers.
   tunnelRoute: "/monitoring",
 });

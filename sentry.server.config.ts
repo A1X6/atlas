@@ -8,5 +8,9 @@ Sentry.init({
   dsn,
   enabled: Boolean(dsn),
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  // Richer debugging context (Sentry-recommended). sendDefaultPii attaches IP +
+  // request headers; Sentry still scrubs known-sensitive fields (auth, cookies).
+  sendDefaultPii: true,
+  includeLocalVariables: true,
   enableLogs: true,
 });

@@ -94,10 +94,12 @@ Open `http://localhost:3000`, browse the catalogue, then sign in with a test acc
 3. Add `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `APP_URL` (your production URL) as env vars.
    Optionally add `BREVO_*` / `MESSAGECENTRAL_*` (real email/SMS) and `SENTRY_DSN` (monitoring) — without
    them verification codes log to the server logs. `NODE_ENV` is set to `production` by Vercel automatically.
-4. Deploy (Vercel auto-deploys on push; its build runs ESLint + TypeScript + `next build` as the gate).
-   Then run migrations + seed against the production DB:
+4. Deploy. Vercel auto-deploys on push and runs the **`vercel-build`** script
+   (`prisma generate && prisma migrate deploy && next build`), so **migrations apply automatically**
+   on every deploy. (`prisma` + `dotenv` are production deps so the CLI works during the build.)
+5. Seed the test accounts **once** against the production DB (seeding is deliberately not part of the
+   build, so it doesn't re-run on every deploy):
    ```bash
-   DATABASE_URL=<prod-url> npx prisma migrate deploy
    DATABASE_URL=<prod-url> npm run db:seed
    ```
 

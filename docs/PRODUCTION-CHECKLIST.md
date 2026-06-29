@@ -72,13 +72,22 @@ HTTPS, the `secure` refresh cookie works correctly — the local-http session qu
 
 The git root is the **`atlas/`** folder, and the migrations live in `prisma/migrations/`.
 
-- [ ] **Reusing your existing Neon DB?** It's already migrated and seeded — nothing to do.
-- [ ] **Fresh prod DB?** Run once against it:
+**Migrations apply automatically on every Vercel deploy** — the `vercel-build` script runs
+`prisma generate && prisma migrate deploy && next build` (and `prisma` + `dotenv` are production
+dependencies so the CLI survives Vercel's dev-dependency pruning). So you don't run `migrate deploy`
+by hand for normal deploys.
+
+- [ ] **Reusing your existing Neon DB?** Already migrated and seeded — nothing to do.
+- [ ] **Fresh prod DB?** It will be migrated automatically on first deploy; you only need to **seed the
+      test accounts once**:
   ```bash
-  DATABASE_URL="<prod-url>" npx prisma migrate deploy
   DATABASE_URL="<prod-url>" npm run db:seed     # creates admin@atlas.io + user@atlas.io
   ```
-  (The Vercel build runs `prisma generate`, not `migrate deploy`, so migrations are applied here, not at build time.)
+  (Seeding is intentionally **not** in `vercel-build` — you don't want to re-seed on every deploy.)
+
+> ⚠️ `migrate deploy` in `vercel-build` runs for **every** deployment, including Preview deploys. If a
+> preview points at the same `DATABASE_URL` as production, its migrations hit the production DB. For a
+> single-DB assessment that's fine; for a real product, give Preview its own database/branch.
 
 ---
 
