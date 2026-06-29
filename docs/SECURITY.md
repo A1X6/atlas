@@ -13,7 +13,7 @@ Security controls mapped to the risks called out in the assessment.
 | **Personal data**      | Responses use **DTOs** (`profileSelect`) that never include the password hash. Data access is centralized in repositories. |
 | **Application APIs**   | Every request body/query is validated with **Zod**; a central error handler returns consistent JSON and never leaks stack traces. |
 | **Uploaded images**    | Validated by **magic bytes** (not the spoofable Content-Type), size-capped (4 MB), stored under **random** keys (no path traversal), behind a storage interface. |
-| **External API creds** | All external calls (DummyJSON sync, **Brevo** email, **Message Central** SMS, Upstash, Vercel Blob) are **server-side only**; keys are read solely through the `server-only` `env.ts` and never reach the client. Untrusted responses are **Zod-validated** before persistence. |
+| **External API creds** | All external calls (DummyJSON sync, **Brevo** email, **Twilio** SMS, Upstash, Vercel Blob) are **server-side only**; keys are read solely through the `server-only` `env.ts` and never reach the client. Untrusted responses are **Zod-validated** before persistence. |
 | **Malicious requests** | **Rate limiting** (Upstash Redis sliding window) on auth, contact, upload, and sync routes; input validation; security headers. |
 | **Transport/headers**  | CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and HSTS (see `next.config.ts`). |
 | **CSRF**               | Data APIs authenticate via **Bearer tokens**, not ambient cookies, so they aren't exposed to CSRF. The only cookie (refresh token) is `httpOnly` + `Secure` + `SameSite=strict` and scoped to `/api/v1/auth`. |

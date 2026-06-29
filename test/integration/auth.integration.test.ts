@@ -7,14 +7,20 @@ vi.mock("@/src/server/sms/sms-sender", () => ({
     smsLog.push(sms);
   }),
 }));
-// Don't actually log verification emails during the run.
-vi.mock("@/src/server/email/mailer", () => ({ sendEmail: vi.fn(async () => {}) }));
+// Capture verification emails so we can assert the resend flow.
+const emailLog: { to: string; subject: string; text: string }[] = [];
+vi.mock("@/src/server/email/mailer", () => ({
+  sendEmail: vi.fn(async (mail: { to: string; subject: string; text: string }) => {
+    emailLog.push(mail);
+  }),
+}));
 
 import { prisma } from "@/src/server/db";
 import {
   registerUser,
   loginUser,
   verifyEmail,
+  resendVerificationForCredentials,
 } from "@/src/server/services/auth-service";
 import {
   requestPhoneVerification,
@@ -68,6 +74,17 @@ describe("registration gating + login + lockout (integration)", () => {
     await expect(loginUser({ email, password }, ctx)).rejects.toBeInstanceOf(
       EmailNotVerifiedError,
     );
+  });
+
+  it("pre-session resend sends a fresh link for valid creds, and no-ops on a wrong password", async () => {
+    emailLog.length = 0;
+    // Wrong password → silently no-op (no email, no account enumeration).
+    await resendVerificationForCredentials(email, "wrong-pass-9");
+    expect(emailLog.length).toBe(0);
+    // Correct password while still unverified → a verification email is dispatched.
+    await resendVerificationForCredentials(email, password);
+    expect(emailLog.length).toBe(1);
+    expect(emailLog[0].to).toBe(email);
   });
 
   it("login SUCCEEDS once the email is verified", async () => {

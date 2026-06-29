@@ -33,12 +33,10 @@ const EnvSchema = z.object({
   BREVO_SENDER_EMAIL: z.string().optional(),
   BREVO_SENDER_NAME: z.string().optional(),
 
-  // SMS (Message Central CPaaS). Optional → sms-sender logs to console if absent.
-  MESSAGECENTRAL_CUSTOMER_ID: z.string().optional(),
-  MESSAGECENTRAL_PASSWORD: z.string().optional(),
-  MESSAGECENTRAL_SENDER_ID: z.string().optional(),
-  MESSAGECENTRAL_EMAIL: z.string().optional(),
-  MESSAGECENTRAL_COUNTRY: z.string().optional(),
+  // SMS (Twilio Programmable SMS). Optional → sms-sender logs to console if absent.
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM_NUMBER: z.string().optional(),
 
   // App
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

@@ -37,10 +37,10 @@ list to take it from "builds locally" to **live and usable by real people**.
 | **Upstash Redis** | Strongly recommended | Already provisioned (rate limiting). Or add via Vercel Marketplace. | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
 | **Vercel Blob** | Needed for avatar upload | In the Vercel project → **Storage → Create Blob store**. | `BLOB_READ_WRITE_TOKEN` (auto-injected) |
 | **Brevo** (email) | Needed for real user verification | Sign up → **verify a sender email or domain** (required, else sends fail) → *SMTP & API → API Keys* → create a key. | `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` |
-| **Message Central** (SMS) | Optional (phone OTP) | Sign up at cpaas.messagecentral.com → get Customer ID + password + an approved Sender ID. Free test credits, delivers to any number. | `MESSAGECENTRAL_*` |
+| **Twilio** (SMS) | Optional (phone OTP) | Sign up at twilio.com/try-twilio → the Console shows your Account SID + Auth Token; claim a trial phone number (E.164) as the sender. Free trial credit; trial texts deliver to **verified** numbers only. | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
 | **Sentry** | Optional (monitoring) | Create a project → copy DSN. | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_ORG/PROJECT/AUTH_TOKEN` for source maps) |
 
-> Without Brevo/Message Central keys the verification flows still work — codes/links just print to the
+> Without Brevo/Twilio keys the verification flows still work — codes/links just print to the
 > server logs instead of being delivered. That's fine for a demo, **not** for real external users.
 
 ---
@@ -57,7 +57,7 @@ list to take it from "builds locally" to **live and usable by real people**.
 - [ ] `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — rate limiting
 - [ ] `BLOB_READ_WRITE_TOKEN` — avatar uploads (auto-added by the Blob store)
 - [ ] `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` — real email
-- [ ] `MESSAGECENTRAL_CUSTOMER_ID` / `MESSAGECENTRAL_PASSWORD` / `MESSAGECENTRAL_SENDER_ID` / `MESSAGECENTRAL_EMAIL` / `MESSAGECENTRAL_COUNTRY` — real SMS
+- [ ] `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` — real SMS
 - [ ] `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` — error monitoring
 
 **Have sensible defaults — only override if needed**

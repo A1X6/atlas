@@ -219,6 +219,27 @@ export async function verifyEmail(rawToken: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Resend the verification link after a valid-but-unverified login attempt,
+ * WITHOUT starting a session. Re-validates the password so only the account
+ * owner can trigger it, and always resolves the same way regardless of outcome
+ * (no account enumeration, mirroring `loginUser`). Drives the login screen's
+ * "email not verified" panel so a blocked user is never left without a path.
+ */
+export async function resendVerificationForCredentials(
+  email: string,
+  password: string,
+): Promise<void> {
+  const account = await users.findUserByEmailForAuth(email);
+  if (!account) {
+    await verifyPassword(DUMMY_HASH, password); // equalize timing — no enumeration
+    return;
+  }
+  const valid = await verifyPassword(account.passwordHash, password);
+  if (!valid || account.emailVerified) return; // bad creds or already verified → no-op
+  await sendEmailVerification(account.id);
+}
+
 // ── Password reset ────────────────────────────────────────────────────────────
 /** Always resolves (no account enumeration); only sends mail if the user exists. */
 export async function requestPasswordReset(email: string): Promise<void> {

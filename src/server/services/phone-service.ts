@@ -36,9 +36,8 @@ export async function requestPhoneVerification(
   });
 
   await sendSms({
-    to: `${countryCode} ${number}`.trim(),
-    countryCode,
-    nationalNumber: number,
+    // E.164 (digits only, leading +) is what Twilio expects, e.g. "+447700900812".
+    to: `+${`${countryCode}${number}`.replace(/\D/g, "")}`,
     text: `Your Atlas verification code is ${code}. It expires in 10 minutes. If you didn't request this, ignore this message.`,
   });
 }

@@ -47,7 +47,7 @@ Fill in `.env` (see `.env.example` for the full annotated list):
   - `UPSTASH_REDIS_REST_URL` / `_TOKEN` — rate limiting (skipped if absent).
   - `BLOB_READ_WRITE_TOKEN` — image uploads (clear error if absent).
   - `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` — real verification/reset **email** (logs to console if absent).
-  - `MESSAGECENTRAL_*` — real phone-verification **SMS** (logs to console if absent).
+  - `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` — real phone-verification **SMS** (logs to console if absent).
   - `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` — error monitoring (inert if absent).
 
 > With no optional keys set, the app runs fully locally — verification codes/links just print to the
@@ -92,7 +92,7 @@ Open `http://localhost:3000`, browse the catalogue, then sign in with a test acc
 2. Add the **Neon**, **Vercel Blob**, and **Upstash Redis** integrations from the Vercel
    Marketplace — they auto-inject `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, and the Upstash vars.
 3. Add `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `APP_URL` (your production URL) as env vars.
-   Optionally add `BREVO_*` / `MESSAGECENTRAL_*` (real email/SMS) and `SENTRY_DSN` (monitoring) — without
+   Optionally add `BREVO_*` / `TWILIO_*` (real email/SMS) and `SENTRY_DSN` (monitoring) — without
    them verification codes log to the server logs. `NODE_ENV` is set to `production` by Vercel automatically.
 4. Deploy. Vercel auto-deploys on push and runs the **`vercel-build`** script
    (`prisma generate && prisma migrate deploy && next build`), so **migrations apply automatically**

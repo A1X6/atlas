@@ -60,7 +60,7 @@ Relational, normalized (Prisma schema in `prisma/schema.prisma`):
 | Storage     | Vercel Blob behind an interface| Serverless FS is ephemeral; swappable provider                   |
 | Rate limit  | Upstash Redis                  | Shared across serverless instances                               |
 | Email       | Brevo (REST) behind `mailer.ts`| Verification/reset email; env-gated, console fallback in dev      |
-| SMS         | Message Central behind `sms-sender.ts` | Phone OTP delivery; env-gated, console fallback in dev    |
+| SMS         | Twilio Programmable SMS behind `sms-sender.ts` | Phone OTP delivery; env-gated, console fallback in dev |
 | Monitoring  | Sentry (`@sentry/nextjs`)      | Error/exception capture; inert until a DSN is set                |
 | UI kit      | shadcn/ui (Radix) + Tailwind v4 | Accessible primitives; Atlas tokens mapped onto shadcn variables |
 | i18n        | next-intl (locale-prefixed)    | EN/AR + RTL; SEO-friendly per-locale URLs (see I18N.md)          |

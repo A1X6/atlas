@@ -9,11 +9,12 @@ Honest list of what's intentionally out of scope or could be improved.
 - **Admin Users screen** ✅ — admins browse/search users *and* edit role + basic fields at
   `/app/users` (`PATCH /api/v1/users/:id`), with self-lockout and last-admin guards.
 - **Email verification & password reset** ✅ — full token-based flows (verify on register, resend,
-  forgot/reset), and **login is blocked until the primary email is verified**. Real delivery is wired to
+  forgot/reset), and **login is blocked until the primary email is verified**. A blocked user can
+  **resend the link straight from the login screen** (credential-gated, no session, no enumeration). Real delivery is wired to
   **Brevo** (`src/server/email/mailer.ts`); without `BREVO_*` keys it **logs to the server console** so
   the flow is fully testable locally.
 - **Phone verification (SMS OTP)** ✅ — adding/verifying phone numbers via one-time codes, wired to
-  **Message Central** (`src/server/sms/sms-sender.ts`); console fallback when `MESSAGECENTRAL_*` is unset.
+  **Twilio Programmable SMS** (`src/server/sms/sms-sender.ts`); console fallback when `TWILIO_*` is unset.
 - **Account lockout** ✅ — 5 failed logins lock the account for 15 minutes (`src/server/auth/lockout.ts`).
 - **Error monitoring** ✅ — Sentry is integrated (`@sentry/nextjs`) and stays inert until a DSN is set.
 - **Cursor pagination** ✅ — `GET /api/v1/products/feed` is keyset-paginated (newest-first) and powers
@@ -23,7 +24,7 @@ Honest list of what's intentionally out of scope or could be improved.
 ## Remaining functional gaps
 
 - **Real email/SMS delivery** is off until provider keys are set: add `BREVO_*` (email) and
-  `MESSAGECENTRAL_*` (SMS). Brevo needs a verified sender; Message Central delivers on free test credits.
+  `TWILIO_*` (SMS). Brevo needs a verified sender; Twilio gives free trial credit (trial texts go to verified numbers).
   Until then both channels log to the server console.
 - **Cursor feed is newest-first only.** Other sort orders (price, name) still use offset paging;
   keyset pagination for those needs each sort column added to the cursor.

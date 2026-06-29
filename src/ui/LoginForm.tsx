@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Link, useRouter } from "@/src/i18n/navigation";
 import { useAuth } from "@/src/lib/auth";
-import { ApiError } from "@/src/lib/api";
+import { api, ApiError } from "@/src/lib/api";
 import { useErrorMessage } from "@/src/lib/useErrorMessage";
 import { Button, Checkbox, Input, Label, Card } from "@/src/ui/primitives";
 
@@ -20,25 +20,44 @@ export function LoginForm() {
   // When credentials are valid but the email is unverified, the API returns a
   // 403 EMAIL_NOT_VERIFIED — surfaced as a persistent panel rather than a toast.
   const [unverified, setUnverified] = useState(false);
+  // Credentials are kept only after a valid-but-unverified login, so the panel's
+  // "resend" button can re-prove ownership to the pre-session resend endpoint.
+  const [creds, setCreds] = useState<{ email: string; password: string } | null>(null);
+  const [resending, setResending] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setUnverified(false);
     const form = new FormData(e.currentTarget);
+    const email = String(form.get("email"));
+    const password = String(form.get("password"));
     try {
-      await login({
-        email: String(form.get("email")),
-        password: String(form.get("password")),
-      });
+      await login({ email, password });
       router.push("/app");
     } catch (err) {
       setSubmitting(false);
       if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
+        setCreds({ email, password });
         setUnverified(true);
         return;
       }
       toast.error(em(err, t("signInError")));
+    }
+  }
+
+  async function resendVerification() {
+    if (!creds) return;
+    setResending(true);
+    try {
+      // `auth: false` — this runs before a session exists; the endpoint
+      // re-validates the password instead.
+      await api("/auth/resend-verification", { method: "POST", body: creds, auth: false });
+      toast.success(t("verificationResent"));
+    } catch (err) {
+      toast.error(em(err, t("signInError")));
+    } finally {
+      setResending(false);
     }
   }
 
@@ -53,6 +72,14 @@ export function LoginForm() {
         <div className="mb-5 rounded-lg border border-warning-bd bg-warning-soft px-3.5 py-3 text-sm text-warning">
           <p className="font-semibold">{t("emailNotVerifiedTitle")}</p>
           <p className="mt-1 text-[13px] leading-relaxed">{t("emailNotVerifiedBody")}</p>
+          <button
+            type="button"
+            onClick={resendVerification}
+            disabled={resending}
+            className="mt-2 font-medium underline underline-offset-2 hover:opacity-80 disabled:opacity-60"
+          >
+            {resending ? t("sendingVerification") : t("resendVerification")}
+          </button>
         </div>
       )}
 
