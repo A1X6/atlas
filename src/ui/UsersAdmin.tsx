@@ -63,7 +63,7 @@ export function UsersAdmin() {
           return (
             <div className="flex items-center gap-3">
               <span
-                className="h-8 w-8 flex-none rounded-full bg-gradient-to-br from-accent to-[#60a5fa] bg-cover"
+                className="h-8 w-8 flex-none rounded-full bg-linear-to-br from-accent to-[#60a5fa] bg-cover"
                 style={u.avatarUrl ? { backgroundImage: `url(${u.avatarUrl})` } : undefined}
               />
               <div className="min-w-0">
