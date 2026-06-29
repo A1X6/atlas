@@ -1,74 +1,107 @@
 # Known Limitations & Future Work
 
-Honest list of what's intentionally out of scope or could be improved.
+A candid, prioritized list of what is **incomplete, weak, or intentionally out of scope**. Being able
+to name these is part of the assessment, so nothing is hidden here.
 
-## Functional — implemented since first pass
+> For the list of what *is* implemented (auth, verification flows, lockout, product/user management,
+> i18n, SEO, monitoring, etc.), see the [README](../README.md) and [ARCHITECTURE](./ARCHITECTURE.md).
 
-- **Account editing** ✅ — users edit their profile, avatar, and multiple emails/phones at
-  `/app/account` (`PATCH /api/v1/account`); email-verification status is preserved across edits.
-- **Admin Users screen** ✅ — admins browse/search users *and* edit role + basic fields at
-  `/app/users` (`PATCH /api/v1/users/:id`), with self-lockout and last-admin guards.
-- **Email verification & password reset** ✅ — full token-based flows (verify on register, resend,
-  forgot/reset), and **login is blocked until the primary email is verified**. A blocked user can
-  **resend the link straight from the login screen** (credential-gated, no session, no enumeration). Real delivery is wired to
-  **Brevo** (`src/server/email/mailer.ts`); without `BREVO_*` keys it **logs to the server console** so
-  the flow is fully testable locally.
-- **Phone verification (SMS OTP)** ✅ — adding/verifying phone numbers via one-time codes, wired to
-  **Twilio Programmable SMS** (`src/server/sms/sms-sender.ts`); console fallback when `TWILIO_*` is unset.
-- **Account lockout** ✅ — 5 failed logins lock the account for 15 minutes (`src/server/auth/lockout.ts`).
-- **Error monitoring** ✅ — Sentry is integrated (`@sentry/nextjs`) and stays inert until a DSN is set.
-- **Cursor pagination** ✅ — `GET /api/v1/products/feed` is keyset-paginated (newest-first) and powers
-  the in-app product browser's infinite scroll. The **public catalogue keeps numbered offset pages on
-  purpose** — crawlable numbered URLs are better for SEO than infinite scroll.
-- **Server-side optimistic auth** ✅ — route redirects run in `proxy.ts` and the signed-in nav is
-  server-rendered, both from a signed `atlas_session` cookie, so there's no post-load auth flash or
-  nav lag. The API stays **Bearer-only** (mobile unaffected); gated on `JWT_SESSION_SECRET`.
+---
 
-## Remaining functional gaps
+## Security & hardening
 
-- **Real email/SMS delivery** is off until provider keys are set: add `BREVO_*` (email) and
-  `TWILIO_*` (SMS). Brevo needs a verified sender; Twilio gives free trial credit (trial texts go to verified numbers).
-  Until then both channels log to the server console.
-- **Cursor feed is newest-first only.** Other sort orders (price, name) still use offset paging;
-  keyset pagination for those needs each sort column added to the cursor.
-- **Admins edit all of a user's profile fields** (name, date of birth, gender, country, address, bio,
-  role) but **not emails/phones** — those govern login identity + verification, so they stay
-  user-managed by design.
+- **No bot protection / CAPTCHA** on public forms (register, login, contact). Abuse is bounded only by
+  rate limiting; a Turnstile/reCAPTCHA (or Vercel BotID) challenge would harden signup/login.
+- **CSP uses `'unsafe-inline'`** for the inline theme script and injected styles. A nonce-based CSP via
+  `proxy.ts` would be stricter.
+- **Rate limiting no-ops without Upstash credentials** (so local dev isn't blocked). It **must** be
+  configured in any deployed environment, or sensitive endpoints are unprotected.
+- **Upload endpoint is usable pre-auth** (to support registration). It is rate-limited, magic-byte
+  validated, and capped at 4 MB, but a fully authenticated "upload then attach" flow would be tighter.
+- **Uploaded images are public Blob URLs** (with unguessable keys). Private blobs + signed URLs would
+  be stricter for sensitive imagery.
+- **Modest password policy** — 8–128 chars, must contain a letter and a number. There is no breach-list
+  check (e.g. HaveIBeenPwned) and no strength meter.
+- **No CSRF tokens.** This is *structurally* mitigated — all state-changing API calls require a **Bearer
+  access token** (not a cookie), and the `atlas_session` cookie is `SameSite=Lax` and used only for
+  read-only nav/redirects. It would need real CSRF protection if any mutation ever became cookie-authenticated.
+- **No audit log** of admin or security-sensitive actions (role changes, deletions, logins). There's no
+  trail of who changed what.
+
+## Authentication & sessions
+
+- **No 2FA / MFA at login.** Email and phone verification exist, but neither is a second factor for the
+  login step itself.
+- **No user-facing session management.** The server *can* revoke all sessions (it does so on password
+  change and on refresh-token reuse detection), but there is no "active sessions / log out everywhere"
+  screen for users to see or revoke their own devices.
+
+## Data integrity & concurrency
+
+- **No optimistic locking** (no row-version column). Concurrent edits to the same user or product are
+  **last-write-wins** — a later save silently overwrites an earlier one with no conflict warning.
+- **Circuit-breaker state is in-memory, per serverless instance** — not shared across instances. A
+  shared store (Redis) would make the breaker global; per-instance protection is adequate at this scale.
+
+## Privacy & data lifecycle
+
+- **No account deletion and no user deletion by an admin.** There is no "right to erasure" path — a user
+  cannot delete their own account, and an admin can only edit users, not remove them. (Products *can* be
+  deleted; users cannot.)
+- **No account deactivation / suspension.** There is no `disabled`/`suspended` state — an admin can
+  change a user's role but cannot lock or disable an account without deleting data.
+- **Uploaded images are not re-encoded and EXIF metadata is not stripped.** Files are validated by magic
+  bytes and size-capped, but stored as-is, so photos may retain camera/GPS metadata. Re-encoding
+  (e.g. with `sharp`) would strip metadata and normalize formats.
+- **Admins edit all profile fields *except* emails/phones** — deliberate, since those govern login
+  identity + verification, so they stay user-managed. Listed here for completeness, not as a defect.
+
+## Functional gaps
+
+- **Real email/SMS delivery is off until provider keys are set** (`BREVO_*` for email, `TWILIO_*` for
+  SMS). Until then both channels **log the code/link to the server console** so flows are testable
+  locally. Brevo needs a verified sender; Twilio trial texts only reach verified numbers.
+- **Cursor feed is newest-first only.** The in-app infinite scroll (`/api/v1/products/feed`) is keyset
+  paginated by recency; other sort orders (price, name) still use offset paging, because keyset paging
+  for those needs each sort column folded into the cursor. (The **public catalogue keeps numbered
+  offset pages on purpose** — crawlable URLs are better for SEO than infinite scroll.)
+- **Search is basic substring matching** (case-insensitive `contains`) — no full-text search, fuzzy
+  matching, or relevance ranking.
 
 ## Internationalization
 
-- **Prices** are formatted locale-aware from `priceCents` via next-intl's formatter (`useFormatter` /
-  `getFormatter`) in the catalogue, product detail, and admin table — currency, digits, and separators
-  follow the active locale.
-- **API error messages are localized server-side** to the request locale (`NEXT_LOCALE` cookie):
-  Zod **per-field** messages carry i18n keys (namespace `validation`) and AppErrors localize by code,
-  so responses are translated for any consumer (web or mobile) — verified for `/en` and `/ar`.
-- Arabic translations were authored for completeness; a native review is recommended before production.
+- **Only English + Arabic.** Arabic translations were authored for completeness; a **native review is
+  recommended** before production. (Prices/dates *are* locale-aware and API error messages *are*
+  localized server-side — those are implemented, not gaps.)
 
-## Security / hardening
+## Accessibility
 
-- **CSP uses `'unsafe-inline'`** for the inline theme script and injected styles. A nonce-based CSP via
-  `proxy.ts` would be stricter.
-- **Upload endpoint is usable pre-auth** (to support registration). It is rate-limited and validates
-  content, but a fully authenticated, two-step "upload then attach" flow would be tighter.
-- **Uploaded images are stored as public Blob URLs** (avatars under `avatars/`, product images under
-  `products/`; unguessable suffixes). Private blobs + signed URLs would be stricter for sensitive imagery.
-- **Rate limiting** no-ops if Upstash isn't configured (local dev). Configure it in any deployed
-  environment.
+- **Not formally audited** (no axe / Lighthouse a11y pass). One known minor leak: the loading spinner
+  has a hardcoded English `aria-label="Loading"` (`src/ui/primitives.tsx`) that doesn't translate.
 
-## Testing
+## Testing & CI
 
-- **Unit tests** (`npm test`) cover the security-critical pure logic (hashing, tokens, lockout,
-  validation, image detection, formatting).
-- **Integration tests** (`npm run test:integration`) hit a real Neon DB and cover the auth flows
-  end-to-end: registration gating, the login email-verification gate, account lockout, and phone OTP.
-- **Playwright** smoke specs cover the DB-free public pages.
-- There is **no GitHub Actions CI** — the project deploys via **Vercel auto-deploy**, whose build runs
-  ESLint + TypeScript + `next build` as the gate. Run the test suites locally before pushing.
+- **Integration tests run against a real Neon database**, not an isolated or transactional test DB, so
+  they aren't fully hermetic — they need network access and a reachable DB and can be affected by
+  existing data.
+- **Playwright covers only the DB-free public pages** — authenticated/admin flows aren't covered by E2E.
+- **No GitHub Actions CI.** The quality gate is the **Vercel deploy build** (ESLint + TypeScript +
+  `next build`). Run `npm test` / `npm run test:integration` locally before pushing.
 
 ## Ops
 
-- **Migrations/seed** must be run against the target database after the first deploy (documented in the
+- **Migrations/seed must be run against the target DB after the first deploy** (documented in the
   README). There is no automatic seed on deploy.
-- **Circuit breaker** state for the external API is in-memory (per serverless instance). A shared store
-  would make it global, though per-instance protection is sufficient at this scale.
+
+---
+
+## Things that are deliberately *not* limitations
+
+Worth distinguishing from the above, because they look like gaps but are intentional and **implemented**:
+
+- **Refresh-token rotation + reuse detection** — every refresh rotates the token; replaying a consumed
+  token revokes the **whole token family** (`rotateRefresh` in `auth-service.ts`).
+- **Login email-verification gate** with a from-the-login-screen resend (no account enumeration).
+- **Account lockout** after repeated failed logins.
+- **Server-side authorization** on every protected route (UI hiding is convenience, not the boundary).
+- **Bearer-only API** so the same endpoints serve web and future native clients unchanged.
