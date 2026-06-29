@@ -9,7 +9,8 @@ import { api } from "@/src/lib/api";
 import { useErrorMessage } from "@/src/lib/useErrorMessage";
 import { useAuth } from "@/src/lib/auth";
 import type { Paginated, Role, UserProfile } from "@/src/lib/types";
-import { Button, Input, Label, RoleBadge, Spinner } from "@/src/ui/primitives";
+import { Button, Input, Label, RoleBadge } from "@/src/ui/primitives";
+import { ErrorState, TableRowsSkeleton } from "@/src/ui/states";
 import { DataTable } from "@/src/ui/DataTable";
 import { Pagination } from "@/src/ui/Pagination";
 import {
@@ -36,6 +37,7 @@ function primaryPhone(u: UserProfile): string {
 
 export function UsersAdmin() {
   const t = useTranslations("users");
+  const tc = useTranslations("common");
   const format = useFormatter();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -44,7 +46,7 @@ export function UsersAdmin() {
   const params = new URLSearchParams({ page: String(page), pageSize: "10" });
   if (q) params.set("q", q);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-users", { q, page }],
     queryFn: () => api<Paginated<UserProfile>>(`/users?${params.toString()}`),
     placeholderData: keepPreviousData,
@@ -142,11 +144,16 @@ export function UsersAdmin() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {isLoading ? (
-          <div className="flex h-48 items-center justify-center">
-            <Spinner className="h-5 w-5 text-accent" />
-          </div>
+          <TableRowsSkeleton />
         ) : isError ? (
-          <div className="p-10 text-center text-sm text-text-2">{t("fetchError")}</div>
+          <ErrorState
+            title={tc("errorTitle")}
+            body={t("fetchError")}
+            retryLabel={tc("tryAgain")}
+            onRetry={() => refetch()}
+            statusLabel={tc("statusPage")}
+            statusHref="/api/v1/health"
+          />
         ) : data && data.items.length > 0 ? (
           <DataTable table={table} label={t("title")} />
         ) : (

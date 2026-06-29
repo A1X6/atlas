@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { api } from "@/src/lib/api";
-import { Card, Spinner } from "@/src/ui/primitives";
+import { Card } from "@/src/ui/primitives";
+import { DashboardSkeleton, ErrorState } from "@/src/ui/states";
 
 type AdminStats = {
   totalProducts: number;
@@ -21,24 +22,28 @@ type AdminStats = {
 
 export function Dashboard() {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const format = useFormatter();
   const now = useNow(); // stable "now" for relative times (avoids the ENVIRONMENT_FALLBACK warning)
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["stats"],
     queryFn: () => api<{ stats: AdminStats }>("/stats").then((r) => r.stats),
   });
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-6 w-6 text-accent" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
   if (isError || !data) {
     return (
-      <div className="rounded-xl border border-danger-bd bg-surface p-8 text-center text-sm text-text-2">
-        {t("error")}
+      <div className="mx-auto max-w-5xl">
+        <ErrorState
+          title={tc("errorTitle")}
+          body={t("error")}
+          retryLabel={tc("tryAgain")}
+          onRetry={() => refetch()}
+          statusLabel={tc("statusPage")}
+          statusHref="/api/v1/health"
+        />
       </div>
     );
   }

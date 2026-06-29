@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { PackageOpen, SearchX, TriangleAlert } from "lucide-react";
+import { PackageOpen, SearchX } from "lucide-react";
 import { api, ApiError } from "@/src/lib/api";
 import type { Product } from "@/src/lib/types";
 import { ProductCard } from "@/src/ui/ProductCard";
+import { ErrorState, ProductGridSkeleton } from "@/src/ui/states";
 
 type Feed = { items: Product[]; nextCursor: string | null };
 
@@ -54,50 +55,17 @@ export function ProductBrowser() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="overflow-hidden rounded-xl border border-border">
-              <div className="skeleton h-32 w-full" />
-              <div className="space-y-2 p-3.5">
-                <div className="skeleton h-2.5 w-1/2 rounded" />
-                <div className="skeleton h-3 w-4/5 rounded" />
-                <div className="skeleton h-2.5 w-1/3 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <ProductGridSkeleton />
       ) : isError ? (
-        <div className="rounded-xl border border-danger-bd bg-surface p-10 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-danger-bd bg-danger-soft text-danger">
-            <TriangleAlert className="h-6 w-6" />
-          </div>
-          <h2 className="mt-4 text-base font-semibold text-text">
-            {t("fetchErrorTitle")}
-            {error instanceof ApiError && (
-              <span className="ms-2 font-mono text-[13px] font-normal text-text-3">
-                ({error.status})
-              </span>
-            )}
-          </h2>
-          <p className="mt-1 text-sm text-text-2">{t("fetchErrorBody")}</p>
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <button
-              onClick={() => refetch()}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
-            >
-              {t("retry")}
-            </button>
-            {/* JSON health endpoint, not an app page — open in a new tab. */}
-            <a
-              href="/api/v1/health"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-2 hover:bg-surface-2"
-            >
-              {t("statusPage")}
-            </a>
-          </div>
-        </div>
+        <ErrorState
+          title={t("fetchErrorTitle")}
+          body={t("fetchErrorBody")}
+          code={error instanceof ApiError ? error.status : undefined}
+          retryLabel={t("retry")}
+          onRetry={() => refetch()}
+          statusLabel={t("statusPage")}
+          statusHref="/api/v1/health"
+        />
       ) : items.length > 0 ? (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

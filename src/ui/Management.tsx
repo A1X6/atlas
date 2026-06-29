@@ -12,6 +12,7 @@ import { useErrorMessage } from "@/src/lib/useErrorMessage";
 import { cn } from "@/src/lib/utils";
 import type { Paginated, Product, ProductStatus } from "@/src/lib/types";
 import { Button, Checkbox, Input, Label, StatusBadge } from "@/src/ui/primitives";
+import { ErrorState, TableRowsSkeleton } from "@/src/ui/states";
 import { DataTable } from "@/src/ui/DataTable";
 import { Pagination } from "@/src/ui/Pagination";
 import {
@@ -83,6 +84,7 @@ const emptyDraft: DraftProduct = {
 
 export function Management() {
   const t = useTranslations("management");
+  const tc = useTranslations("common");
   const em = useErrorMessage();
   const format = useFormatter();
   const locale = useLocale();
@@ -98,7 +100,7 @@ export function Management() {
   const params = new URLSearchParams({ page: String(page), pageSize: "10" });
   if (q) params.set("q", q);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-products", { q, page }],
     queryFn: () => api<Paginated<Product>>(`/products?${params.toString()}`),
     placeholderData: keepPreviousData,
@@ -330,21 +332,16 @@ export function Management() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {isLoading ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3.5">
-                <span className="skeleton h-[18px] w-[18px] rounded-[5px]" />
-                <span className="skeleton h-9 w-9 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <div className="skeleton h-3 w-2/5 rounded" />
-                  <div className="skeleton h-2.5 w-1/4 rounded" />
-                </div>
-                <span className="skeleton h-6 w-20 rounded-full" />
-              </div>
-            ))}
-          </div>
+          <TableRowsSkeleton withCheckbox />
         ) : isError ? (
-          <div className="p-10 text-center text-sm text-text-2">{t("fetchError")}</div>
+          <ErrorState
+            title={tc("errorTitle")}
+            body={t("fetchError")}
+            retryLabel={tc("tryAgain")}
+            onRetry={() => refetch()}
+            statusLabel={tc("statusPage")}
+            statusHref="/api/v1/health"
+          />
         ) : data && data.items.length > 0 ? (
           <DataTable table={table} label={t("title")} />
         ) : (

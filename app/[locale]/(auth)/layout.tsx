@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/src/ui/Logo";
 import { ThemeToggle } from "@/src/ui/ThemeToggle";
+import { RedirectIfAuthenticated } from "@/src/ui/RedirectIfAuthenticated";
 
 // Auth pages are public but should not be indexed.
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             "radial-gradient(120% 80% at 50% -10%, var(--accent-soft) 0%, transparent 55%)",
         }}
       >
-        {children}
+        <RedirectIfAuthenticated>{children}</RedirectIfAuthenticated>
       </main>
       <footer className="px-5 py-4 text-center text-xs text-text-3">
         <Link href="/" className="hover:text-text-2">

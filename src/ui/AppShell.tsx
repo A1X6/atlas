@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/src/i18n/navigation";
 import { Logo } from "@/src/ui/Logo";
 import { ThemeToggle } from "@/src/ui/ThemeToggle";
 import { LanguageSwitcher } from "@/src/ui/LanguageSwitcher";
 import { Spinner, RoleBadge } from "@/src/ui/primitives";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/src/components/ui/sheet";
 import { useAuth } from "@/src/lib/auth";
 import type { Role } from "@/src/lib/types";
 
@@ -26,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const tc = useTranslations("common");
   const router = useRouter();
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Client-side guard for UX; the API independently enforces real authorization.
   useEffect(() => {
@@ -86,30 +89,70 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 flex-none items-center justify-between border-b border-border bg-surface px-5">
-          {/* Mobile nav */}
-          <nav className="flex items-center gap-1 md:hidden">
-            {items.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${active ? "bg-accent-soft text-accent" : "text-text-2"}`}
+          <div className="flex items-center gap-2">
+            {/* Mobile: hamburger → slide-in nav drawer */}
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <button
+                  aria-label={tc("menu")}
+                  className="rounded-md p-1.5 text-text-2 hover:bg-surface-3 md:hidden"
                 >
-                  {t(item.key)}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="hidden md:block">
-            <RoleBadge role={user.role} />
+                  <Menu className="h-5 w-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 border-border bg-surface-2 p-0 text-text">
+                <SheetTitle className="sr-only">{tc("menu")}</SheetTitle>
+                <div className="flex h-full flex-col p-3">
+                  <div className="px-2 py-2.5">
+                    <Logo href="/app" />
+                  </div>
+                  <nav className="mt-2 flex flex-1 flex-col gap-1">
+                    {items.map((item) => {
+                      const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          className={`rounded-lg px-3 py-2 text-sm font-medium ${active ? "bg-accent-soft text-accent" : "text-text-2 hover:bg-surface-3 hover:text-text"}`}
+                        >
+                          {t(item.key)}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                  <div className="mt-auto border-t border-border pt-3">
+                    <div className="px-2 pb-2">
+                      <div className="truncate text-[12.5px] font-medium text-text">
+                        {user.firstName} {user.lastName}
+                      </div>
+                      <div className="text-[10px] text-text-3">
+                        {user.role === "ADMIN" ? tc("role_admin") : tc("role_user")}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        logout();
+                      }}
+                      className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-start text-[13px] text-text hover:bg-surface-3"
+                    >
+                      {t("signOut")}
+                    </button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="hidden md:block">
+              <RoleBadge role={user.role} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <ThemeToggle />
             <button
               onClick={() => logout()}
-              className="rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-[13px] text-text hover:bg-surface-3"
+              className="hidden rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-[13px] text-text hover:bg-surface-3 sm:block"
             >
               {t("signOut")}
             </button>

@@ -21,6 +21,10 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://cdn.dummyjson.com https://i.dummyjson.com https://*.public.blob.vercel-storage.com",
   "font-src 'self' https://fonts.gstatic.com",
+  // Sentry Session Replay spins up a compression Web Worker from a blob: URL.
+  // Without an explicit worker-src the browser falls back to script-src and
+  // blocks it, so allow self + blob: workers.
+  "worker-src 'self' blob:",
   "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",

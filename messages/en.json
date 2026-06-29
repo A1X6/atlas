@@ -16,7 +16,9 @@
     "dashboard": "Dashboard",
     "myProducts": "My products",
     "signIn": "Sign in",
-    "getStarted": "Get started"
+    "getStarted": "Get started",
+    "signOut": "Sign out",
+    "menu": "Menu"
   },
   "footer": {
     "tagline": "Product & user management platform.",
@@ -45,7 +47,16 @@
     "pagination": "Pagination",
     "prevPage": "Previous page",
     "nextPage": "Next page",
-    "goToPage": "Go to page {page}"
+    "goToPage": "Go to page {page}",
+    "loading": "Loading…",
+    "errorTitle": "Something went wrong",
+    "errorBody": "An unexpected error occurred. You can try again.",
+    "tryAgain": "Try again",
+    "statusPage": "Status page",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you're looking for doesn't exist or may have moved.",
+    "goHome": "Back to home",
+    "menu": "Menu"
   },
   "auth": {
     "signInTitle": "Sign in to Atlas",
