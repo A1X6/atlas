@@ -92,16 +92,44 @@ export function Management() {
   const sheetSide = isRtl ? "left" : "right";
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  const [status, setStatus] = useState<ProductStatus | "">("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState<DraftProduct | null>(null);
   const [toDelete, setToDelete] = useState<Product | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Upload a product image via the shared /uploads endpoint (multipart), then
+  // store the returned URL on the draft — same flow as the account avatar.
+  async function onImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error(t("imageExceedsLimit"));
+      e.target.value = "";
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { url } = await api<{ url: string }>("/uploads", { method: "POST", body: fd });
+      setDraft((d) => (d ? { ...d, imageUrl: url } : d));
+      toast.success(t("uploadSuccess"));
+    } catch (err) {
+      toast.error(em(err, t("uploadFailed")));
+    } finally {
+      setUploadingImage(false);
+      e.target.value = ""; // allow re-selecting the same file
+    }
+  }
 
   const params = new URLSearchParams({ page: String(page), pageSize: "10" });
   if (q) params.set("q", q);
+  if (status) params.set("status", status);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["admin-products", { q, page }],
+    queryKey: ["admin-products", { q, status, page }],
     queryFn: () => api<Paginated<Product>>(`/products?${params.toString()}`),
     placeholderData: keepPreviousData,
   });
@@ -309,7 +337,7 @@ export function Management() {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
@@ -317,6 +345,19 @@ export function Management() {
           aria-label={t("searchPlaceholder")}
           className="h-9 w-full max-w-xs rounded-lg border border-border-strong bg-surface px-3 text-sm text-text outline-none focus:border-accent"
         />
+        <select
+          value={status}
+          onChange={(e) => { setStatus(e.target.value as ProductStatus | ""); setPage(1); }}
+          aria-label={t("filterStatus")}
+          className="h-9 rounded-lg border border-border-strong bg-surface px-2 text-sm text-text outline-none focus:border-accent"
+        >
+          <option value="">{t("allStatuses")}</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {t(STATUS_KEYS[s])}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Bulk bar */}
@@ -377,12 +418,34 @@ export function Management() {
                   <Label>{t("fieldImage")}</Label>
                   <div className="flex items-center gap-3">
                     <Thumb src={draft.imageUrl.trim() || null} alt={draft.name} size={48} />
-                    <Input
-                      value={draft.imageUrl}
-                      onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })}
-                      placeholder={t("imageHint")}
-                      className="flex-1"
-                    />
+                    <label
+                      className={cn(
+                        "cursor-pointer rounded-lg border border-dashed border-border-strong px-4 py-2 text-sm text-text-2 hover:border-accent hover:bg-accent-soft",
+                        uploadingImage && "pointer-events-none opacity-60",
+                      )}
+                    >
+                      {uploadingImage
+                        ? t("uploading")
+                        : draft.imageUrl.trim()
+                          ? t("changeImage")
+                          : t("uploadImage")}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={onImageChange}
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                    {draft.imageUrl.trim() && !uploadingImage && (
+                      <button
+                        type="button"
+                        onClick={() => setDraft({ ...draft, imageUrl: "" })}
+                        className="text-sm text-text-3 hover:text-danger"
+                      >
+                        {t("removeImage")}
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div>

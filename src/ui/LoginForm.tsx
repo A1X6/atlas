@@ -86,7 +86,7 @@ export function LoginForm() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <Label htmlFor="email">{t("email")}</Label>
-          <Input id="email" name="email" type="email" required defaultValue="admin@atlas.io" />
+          <Input id="email" name="email" type="email" required autoComplete="email" />
         </div>
         <div>
           <div className="flex items-center justify-between">
@@ -101,7 +101,7 @@ export function LoginForm() {
               name="password"
               type={showPw ? "text" : "password"}
               required
-              defaultValue="Admin123!"
+              autoComplete="current-password"
               className="pe-14"
             />
             <button

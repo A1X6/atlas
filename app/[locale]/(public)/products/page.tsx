@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/src/i18n/navigation";
 import { listProducts, listCategories } from "@/src/server/services/product-service";
 import { productQuerySchema } from "@/src/server/validation/product-schemas";
 import { ProductCard } from "@/src/ui/ProductCard";
+import { ErrorState, ProductGridSkeleton } from "@/src/ui/states";
 import { buildAlternates } from "@/src/lib/seo";
-import type { Product } from "@/src/lib/types";
 
 export async function generateMetadata({
   params,
@@ -28,6 +29,22 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const PAGE_SIZE = 12;
 
+type Query = ReturnType<typeof productQuerySchema.parse>;
+
+// Shared href builder for the filter chips and pagination links.
+function buildProductsHref(query: Query, overrides: Record<string, string | number | undefined>) {
+  const params = new URLSearchParams();
+  if (query.q) params.set("q", query.q);
+  if (query.category) params.set("category", query.category);
+  if (query.sort && query.sort !== "newest") params.set("sort", query.sort);
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === undefined || v === "") params.delete(k);
+    else params.set(k, String(v));
+  }
+  const s = params.toString();
+  return s ? `/products?${s}` : "/products";
+}
+
 export default async function ProductsPage({
   params,
   searchParams,
@@ -45,45 +62,25 @@ export default async function ProductsPage({
     Object.entries(sp).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]),
   );
   const parsed = productQuerySchema.safeParse({ ...norm, pageSize: PAGE_SIZE });
-  const query = parsed.success
-    ? parsed.data
-    : productQuerySchema.parse({ pageSize: PAGE_SIZE });
+  const query = parsed.success ? parsed.data : productQuerySchema.parse({ pageSize: PAGE_SIZE });
 
-  // Resilient: if the DB is unreachable, render an error state instead of crashing.
-  let result: { items: Product[]; total: number; page: number; totalPages: number } | null = null;
+  // Categories are independent of the page/filter, so fetch them here (fast,
+  // distinct query) and keep the filter UI stable across navigations.
   let categories: string[] = [];
-  let failed = false;
   try {
-    const [list, cats] = await Promise.all([
-      listProducts(query, { includeAllStatuses: false }),
-      listCategories(),
-    ]);
-    result = list;
-    categories = cats;
+    categories = await listCategories();
   } catch {
-    failed = true;
+    // Non-fatal: the catalogue still renders without the category chips.
   }
 
-  const buildHref = (overrides: Record<string, string | number | undefined>) => {
-    const params = new URLSearchParams();
-    if (query.q) params.set("q", query.q);
-    if (query.category) params.set("category", query.category);
-    if (query.sort && query.sort !== "newest") params.set("sort", query.sort);
-    for (const [k, v] of Object.entries(overrides)) {
-      if (v === undefined || v === "") params.delete(k);
-      else params.set(k, String(v));
-    }
-    const s = params.toString();
-    return s ? `/products?${s}` : "/products";
-  };
+  // Re-mounting the Suspense boundary on any query change re-shows the skeleton.
+  const suspenseKey = `${query.q ?? ""}|${query.category ?? ""}|${query.sort ?? "newest"}|${query.page ?? 1}`;
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-12">
       <header className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight text-text">{t("title")}</h1>
-        <p className="mt-2 text-[15px] text-text-2">
-          {result ? t("subtitleWithCount", { count: result.total }) : t("subtitle")}
-        </p>
+        <p className="mt-2 text-[15px] text-text-2">{t("subtitle")}</p>
       </header>
 
       {/* Filters (GET form → server-rendered, no JS required, crawlable) */}
@@ -114,7 +111,7 @@ export default async function ProductsPage({
       {categories.length > 0 && (
         <div className="mb-8 flex flex-wrap gap-2">
           <Link
-            href={buildHref({ category: undefined, page: undefined })}
+            href={buildProductsHref(query, { category: undefined, page: undefined })}
             className={`h-8 rounded-full px-3 text-xs leading-8 ${!query.category ? "bg-accent text-on-accent" : "border border-border-strong bg-surface text-text-2 hover:bg-surface-3"}`}
           >
             {t("categoryAll")}
@@ -122,7 +119,7 @@ export default async function ProductsPage({
           {categories.map((c) => (
             <Link
               key={c}
-              href={buildHref({ category: c, page: undefined })}
+              href={buildProductsHref(query, { category: c, page: undefined })}
               className={`h-8 rounded-full px-3 text-xs capitalize leading-8 ${query.category === c ? "bg-accent text-on-accent" : "border border-border-strong bg-surface text-text-2 hover:bg-surface-3"}`}
             >
               {c}
@@ -131,39 +128,63 @@ export default async function ProductsPage({
         </div>
       )}
 
-      {/* Results */}
-      {failed ? (
-        <div className="rounded-xl border border-danger-bd bg-surface p-10 text-center">
-          <h2 className="text-base font-semibold text-text">{t("errorTitle")}</h2>
-          <p className="mt-1 text-sm text-text-2">{t("errorBody")}</p>
-        </div>
-      ) : result && result.items.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {result.items.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-          {result.totalPages > 1 && (
-            <nav className="mt-10 flex items-center justify-center gap-2">
-              {Array.from({ length: result.totalPages }, (_, i) => i + 1).map((n) => (
-                <Link
-                  key={n}
-                  href={buildHref({ page: n === 1 ? undefined : n })}
-                  className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm ${n === result.page ? "bg-accent text-on-accent" : "border border-border-strong bg-surface text-text hover:bg-surface-3"}`}
-                >
-                  {n}
-                </Link>
-              ))}
-            </nav>
-          )}
-        </>
-      ) : (
-        <div className="rounded-xl border border-border bg-surface p-10 text-center">
-          <h2 className="text-base font-semibold text-text">{t("emptyTitle")}</h2>
-          <p className="mt-1 text-sm text-text-2">{t("emptyBody")}</p>
-        </div>
-      )}
+      {/* Results stream in behind a shimmer skeleton; the key re-mounts the
+          boundary on every page/filter change so the skeleton shows each time. */}
+      <Suspense key={suspenseKey} fallback={<ProductGridSkeleton count={PAGE_SIZE} />}>
+        <ProductResults locale={locale} query={query} />
+      </Suspense>
     </div>
+  );
+}
+
+async function ProductResults({ locale, query }: { locale: string; query: Query }) {
+  const t = await getTranslations({ locale, namespace: "catalogue" });
+
+  // Declared without `| null`: the catch always returns, so past the try/catch
+  // TypeScript treats `result` as definitely assigned.
+  let result: Awaited<ReturnType<typeof listProducts>>;
+  try {
+    result = await listProducts(query, { includeAllStatuses: false });
+  } catch {
+    return (
+      <ErrorState
+        title={t("errorTitle")}
+        body={t("errorBody")}
+        statusLabel={t("statusPage")}
+        statusHref="/api/v1/health"
+      />
+    );
+  }
+
+  if (result.items.length === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-surface p-10 text-center">
+        <h2 className="text-base font-semibold text-text">{t("emptyTitle")}</h2>
+        <p className="mt-1 text-sm text-text-2">{t("emptyBody")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {result.items.map((p) => (
+          <ProductCard key={p.id} product={p} />
+        ))}
+      </div>
+      {result.totalPages > 1 && (
+        <nav className="mt-10 flex items-center justify-center gap-2">
+          {Array.from({ length: result.totalPages }, (_, i) => i + 1).map((n) => (
+            <Link
+              key={n}
+              href={buildProductsHref(query, { page: n === 1 ? undefined : n })}
+              className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm ${n === result.page ? "bg-accent text-on-accent" : "border border-border-strong bg-surface text-text hover:bg-surface-3"}`}
+            >
+              {n}
+            </Link>
+          ))}
+        </nav>
+      )}
+    </>
   );
 }

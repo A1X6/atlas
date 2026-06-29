@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono, Cairo } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
@@ -7,6 +8,7 @@ import { routing } from "@/src/i18n/routing";
 import { buildAlternates } from "@/src/lib/seo";
 import { Providers } from "@/src/lib/providers";
 import { Toaster } from "@/src/components/ui/sonner";
+import { TopProgressBar } from "@/src/ui/TopProgressBar";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -63,6 +65,9 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider>
+          <Suspense fallback={null}>
+            <TopProgressBar />
+          </Suspense>
           <Providers>{children}</Providers>
           <Toaster dir={dir} richColors position={dir === "rtl" ? "bottom-left" : "bottom-right"} />
         </NextIntlClientProvider>

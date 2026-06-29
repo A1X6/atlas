@@ -171,3 +171,41 @@ html[lang="ar"] body {
   background-size: 920px 100%;
   animation: shimmer 1.4s infinite linear;
 }
+
+/* Global navigation progress bar (see src/ui/TopProgressBar.tsx). Sits at the
+   very top of the viewport and gives immediate feedback during the click-to-render
+   gap of client-side navigations. Debounced ~150ms so instant navs don't flash. */
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  height: 3px;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--accent);
+  box-shadow: 0 0 8px 0 var(--accent);
+  opacity: 0;
+  pointer-events: none;
+}
+.nav-progress[data-state="loading"] {
+  animation:
+    nav-progress-creep 10s cubic-bezier(0.1, 0.7, 0.1, 1) 0.15s forwards,
+    nav-progress-show 0s linear 0.15s forwards;
+}
+.nav-progress[data-state="done"] {
+  transform: scaleX(1);
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.4s ease 0.1s;
+}
+@keyframes nav-progress-creep {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(0.9); }
+}
+@keyframes nav-progress-show {
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress { transition: none; animation: none; }
+}
