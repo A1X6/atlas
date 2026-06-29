@@ -95,7 +95,8 @@
     "verifiedBody": "Your email address has been confirmed.",
     "continueToSignIn": "Continue to sign in",
     "failedTitle": "Verification failed",
-    "failedBody": "This link is invalid or has expired. You can request a new one from your account."
+    "failedBody": "This link is invalid or has expired. You can request a new one from your account.",
+    "backToAtlas": "Back to Atlas"
   },
   "register": {
     "title": "Create your account",
@@ -243,7 +244,13 @@
     "save": "Save",
     "cancel": "Cancel",
     "updateSuccess": "User updated.",
-    "updateError": "Update failed."
+    "updateError": "Update failed.",
+    "dateOfBirth": "Date of birth",
+    "gender": "Gender",
+    "address": "Address",
+    "bio": "Bio",
+    "optional": "Optional",
+    "bioPlaceholder": "A short bio…"
   },
   "account": {
     "title": "Account",

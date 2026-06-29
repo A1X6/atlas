@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
 import { useErrorMessage } from "@/src/lib/useErrorMessage";
-import type { UserProfile, PhoneDTO } from "@/src/lib/types";
+import type { UserProfile, PhoneDTO, EmailDTO } from "@/src/lib/types";
 import { Button, Card, Input, Label, RoleBadge, Spinner } from "@/src/ui/primitives";
 
 type EmailRow = { address: string; isPrimary: boolean; verified?: boolean };
@@ -54,18 +54,6 @@ export function Account() {
 
 function AccountView({ user }: { user: UserProfile }) {
   const t = useTranslations("account");
-  const hasUnverified = user.emails.some((e) => !e.verified);
-  const [resent, setResent] = useState(false);
-
-  async function resend() {
-    try {
-      await api("/auth/resend-verification", { method: "POST" });
-    } catch {
-      /* swallow — confirmation is intentionally generic */
-    } finally {
-      setResent(true);
-    }
-  }
 
   return (
     <Card className="p-6">
@@ -91,21 +79,9 @@ function AccountView({ user }: { user: UserProfile }) {
         <Field label={t("address")} value={user.address} />
         <div>
           <dt className="text-text-3">{t("emails")}</dt>
-          <dd className="mt-1 space-y-1">
+          <dd className="mt-1 space-y-1.5">
             {user.emails.map((e) => (
-              <div key={e.id} className="flex items-center gap-2">
-                <span className="text-text">{e.address}</span>
-                {e.isPrimary && <Pill>{t("primary")}</Pill>}
-                {e.verified ? (
-                  <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-medium text-success">
-                    {t("verified")}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
-                    {t("unverified")}
-                  </span>
-                )}
-              </div>
+              <EmailVerifyItem key={e.id} email={e} />
             ))}
           </dd>
         </div>
@@ -119,19 +95,55 @@ function AccountView({ user }: { user: UserProfile }) {
         </div>
       </dl>
 
-      {hasUnverified && (
-        <div className="mt-6 flex items-center gap-3 rounded-lg border border-warning-bd bg-warning-soft px-3 py-2.5 text-sm text-warning">
-          <span>{t("unverifiedNotice")}</span>
-          {resent ? (
-            <span className="font-medium">{t("verificationSent")}</span>
+    </Card>
+  );
+}
+
+// One email row in the read view: shows verified status and, for unverified
+// addresses, its own resend button so each can be verified individually.
+function EmailVerifyItem({ email }: { email: EmailDTO }) {
+  const t = useTranslations("account");
+  const [sent, setSent] = useState(false);
+
+  async function resend() {
+    try {
+      await api("/auth/resend-verification", {
+        method: "POST",
+        body: { email: email.address },
+      });
+    } catch {
+      /* swallow — confirmation is intentionally generic */
+    } finally {
+      setSent(true);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-text">{email.address}</span>
+      {email.isPrimary && <Pill>{t("primary")}</Pill>}
+      {email.verified ? (
+        <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-medium text-success">
+          {t("verified")}
+        </span>
+      ) : (
+        <>
+          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
+            {t("unverified")}
+          </span>
+          {sent ? (
+            <span className="text-xs font-medium text-text-3">{t("verificationSent")}</span>
           ) : (
-            <button onClick={resend} className="font-medium underline">
+            <button
+              onClick={resend}
+              className="text-xs font-medium text-accent hover:underline"
+            >
               {t("resendVerification")}
             </button>
           )}
-        </div>
+        </>
       )}
-    </Card>
+    </div>
   );
 }
 

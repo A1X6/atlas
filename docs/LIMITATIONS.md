@@ -31,7 +31,9 @@ Honest list of what's intentionally out of scope or could be improved.
   Until then both channels log to the server console.
 - **Cursor feed is newest-first only.** Other sort orders (price, name) still use offset paging;
   keyset pagination for those needs each sort column added to the cursor.
-- **Admins can't edit other users' emails/phones** (only role + name + country); users manage their own.
+- **Admins edit all of a user's profile fields** (name, date of birth, gender, country, address, bio,
+  role) but **not emails/phones** — those govern login identity + verification, so they stay
+  user-managed by design.
 
 ## Internationalization
 

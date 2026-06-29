@@ -14,18 +14,23 @@ export const dynamic = "force-dynamic";
 export const POST = handle(async (req: NextRequest) => {
   await enforceRateLimit("resend-verification", clientIp(req), 3, "15 m");
 
+  const body = await req.json().catch(() => null);
+
   // Pre-session path (login screen): the caller proves ownership with
   // email + password, so we can resend without a session. Always returns ok,
   // regardless of whether the account exists / the email is already verified
   // (no account enumeration).
-  const parsed = loginSchema.safeParse(await req.json().catch(() => null));
-  if (parsed.success) {
-    await resendVerificationForCredentials(parsed.data.email, parsed.data.password);
+  const credentials = loginSchema.safeParse(body);
+  if (credentials.success) {
+    await resendVerificationForCredentials(credentials.data.email, credentials.data.password);
     return ok({ sent: true });
   }
 
-  // Authenticated path (account page): resend for the signed-in user.
+  // Authenticated path (account page): resend for the signed-in user. An
+  // optional `email` targets a specific owned, unverified address so a user
+  // with several unverified emails can verify each one individually.
   const { sub } = await getAuth(req);
-  await sendEmailVerification(sub);
+  const address = typeof body?.email === "string" ? body.email : undefined;
+  await sendEmailVerification(sub, address);
   return ok({ sent: true });
 });

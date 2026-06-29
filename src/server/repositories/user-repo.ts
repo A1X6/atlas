@@ -143,7 +143,16 @@ export function countAdmins() {
 
 export function adminUpdateUser(
   id: string,
-  data: { role?: Role; firstName?: string; lastName?: string; country?: string | null },
+  data: {
+    role?: Role;
+    firstName?: string;
+    lastName?: string;
+    dateOfBirth?: Date | null;
+    gender?: string | null;
+    address?: string | null;
+    country?: string | null;
+    bio?: string | null;
+  },
 ) {
   return prisma.user.update({ where: { id }, data, select: profileSelect });
 }

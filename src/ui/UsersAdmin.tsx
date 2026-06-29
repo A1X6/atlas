@@ -191,13 +191,26 @@ function EditUserDialog({ user, onClose }: { user: UserProfile; onClose: () => v
   const [role, setRole] = useState<Role>(user.role);
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
+  const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth?.slice(0, 10) ?? "");
+  const [gender, setGender] = useState(user.gender ?? "");
+  const [address, setAddress] = useState(user.address ?? "");
   const [country, setCountry] = useState(user.country ?? "");
+  const [bio, setBio] = useState(user.bio ?? "");
 
   const mutation = useMutation({
     mutationFn: () =>
       api<{ user: UserProfile }>(`/users/${user.id}`, {
         method: "PATCH",
-        body: { role, firstName, lastName, country: country || null },
+        body: {
+          role,
+          firstName,
+          lastName,
+          dateOfBirth: dateOfBirth || null,
+          gender: gender || null,
+          address: address || null,
+          country: country || null,
+          bio: bio || null,
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -209,7 +222,7 @@ function EditUserDialog({ user, onClose }: { user: UserProfile; onClose: () => v
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {t("editTitle", { name: `${user.firstName} ${user.lastName}` })}
@@ -233,9 +246,35 @@ function EditUserDialog({ user, onClose }: { user: UserProfile; onClose: () => v
               <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="dob">{t("dateOfBirth")}</Label>
+              <Input id="dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="gender">{t("gender")}</Label>
+              <Input id="gender" value={gender} onChange={(e) => setGender(e.target.value)} placeholder={t("optional")} />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="address">{t("address")}</Label>
+            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
           <div>
             <Label htmlFor="country">{t("country")}</Label>
             <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="bio">{t("bio")}</Label>
+            <textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              maxLength={280}
+              rows={3}
+              placeholder={t("bioPlaceholder")}
+              className="mt-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
+            />
           </div>
           <div>
             <Label htmlFor="role">{t("role")}</Label>

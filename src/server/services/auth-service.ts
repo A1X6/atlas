@@ -188,10 +188,17 @@ export async function getMe(userId: string) {
 const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
-/** Send a verification link for the user's first unverified email (best-effort). */
-export async function sendEmailVerification(userId: string): Promise<void> {
+/**
+ * Send a verification link for one of the user's emails (best-effort).
+ * With an `address`, targets that specific email — but only if the user owns it
+ * and it's still unverified (unknown addresses are ignored, no leak). Without
+ * one, falls back to the first unverified email.
+ */
+export async function sendEmailVerification(userId: string, address?: string): Promise<void> {
   const emails = await users.getUserEmails(userId);
-  const target = emails.find((e) => !e.verified) ?? emails[0];
+  const target = address
+    ? emails.find((e) => e.address === address)
+    : (emails.find((e) => !e.verified) ?? emails[0]);
   if (!target || target.verified) return;
   await sendEmailVerificationFor(userId, target.address);
 }

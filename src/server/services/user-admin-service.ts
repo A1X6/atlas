@@ -33,6 +33,16 @@ export async function updateUserAsAdmin(
     role: input.role,
     firstName: input.firstName,
     lastName: input.lastName,
-    country: input.country ?? undefined,
+    // `undefined` = leave unchanged; `null` = clear the field.
+    dateOfBirth:
+      input.dateOfBirth === undefined
+        ? undefined
+        : input.dateOfBirth
+          ? new Date(input.dateOfBirth)
+          : null,
+    gender: input.gender,
+    address: input.address,
+    country: input.country,
+    bio: input.bio,
   });
 }
