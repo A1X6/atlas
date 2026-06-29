@@ -9,6 +9,10 @@ import { buildAlternates } from "@/src/lib/seo";
 import { Providers } from "@/src/lib/providers";
 import { Toaster } from "@/src/components/ui/sonner";
 import { TopProgressBar } from "@/src/ui/TopProgressBar";
+import { readSessionCookie } from "@/src/server/auth/cookies";
+import { verifyIdentity } from "@/src/server/auth/identity";
+import { getMe } from "@/src/server/services/auth-service";
+import type { UserProfile } from "@/src/lib/types";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -56,6 +60,23 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
 
   const dir = locale === "ar" ? "rtl" : "ltr";
 
+  // Server-side optimistic auth: seed the client provider from the identity
+  // cookie so the nav renders the correct state on first paint (no flash/lag).
+  // Anonymous visitors carry no cookie, so they never hit the DB. No-ops when
+  // JWT_SESSION_SECRET is unset (verifyIdentity returns null → client bootstrap).
+  let initialUser: UserProfile | null = null;
+  try {
+    const session = await verifyIdentity(await readSessionCookie());
+    if (session) {
+      const profile = await getMe(session.sub);
+      // Normalize to the client DTO exactly like the API does (Date → ISO string)
+      // so the shape matches what /auth/me later returns.
+      initialUser = profile ? (JSON.parse(JSON.stringify(profile)) as UserProfile) : null;
+    }
+  } catch {
+    // Non-fatal — fall back to client-side bootstrap.
+  }
+
   return (
     <html
       lang={locale}
@@ -68,7 +89,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
           <Suspense fallback={null}>
             <TopProgressBar />
           </Suspense>
-          <Providers>{children}</Providers>
+          <Providers initialUser={initialUser}>{children}</Providers>
           <Toaster dir={dir} richColors position={dir === "rtl" ? "bottom-left" : "bottom-right"} />
         </NextIntlClientProvider>
       </body>

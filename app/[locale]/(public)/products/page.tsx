@@ -178,6 +178,7 @@ async function ProductResults({ locale, query }: { locale: string; query: Query 
             <Link
               key={n}
               href={buildProductsHref(query, { page: n === 1 ? undefined : n })}
+              aria-current={n === result.page ? "page" : undefined}
               className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm ${n === result.page ? "bg-accent text-on-accent" : "border border-border-strong bg-surface text-text hover:bg-surface-3"}`}
             >
               {n}

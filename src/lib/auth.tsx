@@ -18,9 +18,19 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [status, setStatus] = useState<AuthStatus>("loading");
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode;
+  // Seeded by the server from the identity cookie so the nav renders the correct
+  // state on first paint (no flash / lag). The bootstrap below still runs to mint
+  // an in-memory access token and confirm the session; if it fails (e.g. expired)
+  // the optimistic state self-heals to anonymous.
+  initialUser?: UserProfile | null;
+}) {
+  const [user, setUser] = useState<UserProfile | null>(initialUser);
+  const [status, setStatus] = useState<AuthStatus>(initialUser ? "authenticated" : "loading");
 
   // Bootstrap: if a refresh cookie exists, mint an access token and load the user.
   useEffect(() => {

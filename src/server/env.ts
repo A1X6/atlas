@@ -14,6 +14,11 @@ const EnvSchema = z.object({
   // Auth — symmetric secrets for signing JWTs (generate with: openssl rand -base64 48)
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be >= 32 chars"),
   JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be >= 32 chars"),
+  // Signs the web-only "identity" cookie used for server-side optimistic auth
+  // (proxy redirects + SSR'd nav state). Optional: if absent, server-side auth
+  // is disabled and the app falls back to client-side bootstrap (no breakage).
+  // This cookie NEVER authorizes the API — that stays Bearer-token only.
+  JWT_SESSION_SECRET: z.string().min(32, "JWT_SESSION_SECRET must be >= 32 chars").optional(),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
@@ -41,6 +46,16 @@ const EnvSchema = z.object({
   // App
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().default("http://localhost:3000"),
+
+  // Observability (Sentry). NOTE: these are read DIRECTLY from process.env by the
+  // Sentry SDK (client/server config) and the build-time withSentryConfig plugin
+  // — NOT via getEnv(). Listed here as optional purely so this file is a complete
+  // manifest of the project's env; nothing in app code consumes them through here.
+  SENTRY_DSN: z.string().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  SENTRY_AUTH_TOKEN: z.string().optional(),
+  SENTRY_ORG: z.string().optional(),
+  SENTRY_PROJECT: z.string().optional(),
 });
 
 let cached: z.infer<typeof EnvSchema> | null = null;

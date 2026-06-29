@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getEnv, isProd } from "@/src/server/env";
+import { SESSION_COOKIE } from "@/src/server/auth/identity";
 
 /**
  * The refresh token lives in an httpOnly cookie scoped to the auth endpoints.
@@ -36,4 +37,37 @@ export async function clearRefreshCookie() {
 export async function readRefreshCookie(): Promise<string | undefined> {
   const store = await cookies();
   return store.get(REFRESH_COOKIE)?.value;
+}
+
+/**
+ * The identity cookie (web-only optimistic auth) is readable on every request —
+ * path "/" and SameSite=lax so it survives top-level navigations (e.g. arriving
+ * from an emailed link) — which the strict, auth-path-scoped refresh cookie is
+ * deliberately not. It is httpOnly and carries no privileges of its own.
+ */
+export async function setSessionCookie(token: string) {
+  const store = await cookies();
+  store.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: getEnv().REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
+  });
+}
+
+export async function clearSessionCookie() {
+  const store = await cookies();
+  store.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
+export async function readSessionCookie(): Promise<string | undefined> {
+  const store = await cookies();
+  return store.get(SESSION_COOKIE)?.value;
 }

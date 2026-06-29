@@ -3,7 +3,9 @@ import { handle, ok } from "@/src/server/http/respond";
 import { ValidationError } from "@/src/server/http/errors";
 import { loginSchema } from "@/src/server/validation/auth-schemas";
 import { loginUser } from "@/src/server/services/auth-service";
-import { setRefreshCookie } from "@/src/server/auth/cookies";
+import { setRefreshCookie, setSessionCookie } from "@/src/server/auth/cookies";
+import { signIdentity } from "@/src/server/auth/identity";
+import { getEnv } from "@/src/server/env";
 import { enforceRateLimit, clientIp } from "@/src/server/security/ratelimit";
 
 export const runtime = "nodejs";
@@ -25,5 +27,15 @@ export const POST = handle(async (req: NextRequest) => {
   });
 
   await setRefreshCookie(refresh.token);
+  // Web-only optimistic-auth hint (ignored by mobile clients, which use the
+  // accessToken in the response body). No-ops if JWT_SESSION_SECRET is unset.
+  if (user) {
+    const identity = await signIdentity(
+      { sub: user.id, role: user.role },
+      getEnv().REFRESH_TOKEN_TTL_DAYS,
+    );
+    if (identity) await setSessionCookie(identity);
+  }
+
   return ok({ user, accessToken });
 });
