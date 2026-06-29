@@ -54,6 +54,7 @@ list to take it from "builds locally" to **live and usable by real people**.
 - [ ] `APP_URL` — your real URL, e.g. `https://atlas.vercel.app` *(drives SEO canonical/OG/sitemap — must not stay `localhost`)*
 
 **Recommended / optional** (graceful fallback if unset)
+- [ ] `JWT_SESSION_SECRET` — enables **server-side optimistic auth** (instant signed-in nav + redirects); generate with `openssl rand -base64 48`. Without it, auth falls back to client-side with a brief post-load flash.
 - [ ] `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — rate limiting
 - [ ] `BLOB_READ_WRITE_TOKEN` — avatar uploads (auto-added by the Blob store)
 - [ ] `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` — real email
@@ -128,7 +129,7 @@ by hand for normal deploys.
 
 ## Phase 7 — Security final pass
 
-- [ ] **Use fresh production JWT secrets** — don't reuse dev secrets that have been shared in chats/screens.
+- [ ] **Use fresh production JWT secrets** (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_SESSION_SECRET`) — don't reuse dev secrets that have been shared in chats/screens.
 - [ ] **Rotate any credential that has been exposed** during development (DB password, Upstash token) for the production environment, or use a separate prod DB/branch.
 - [ ] Confirm `.env` is **not** in git (`git check-ignore .env` → `.env`).
 - [ ] Confirm the app is served over **HTTPS** (Vercel default) so the `secure` cookies apply.
@@ -149,7 +150,7 @@ These are documented in [LIMITATIONS.md](./LIMITATIONS.md) and are **not** requi
 
 ## Already done (so you don't redo it)
 
-✅ Auth (argon2id, JWT, rotating+hashed refresh with reuse detection), server-side RBAC, account lockout,
+✅ Auth (argon2id, JWT, rotating+hashed refresh with reuse detection), server-side RBAC, optimistic server-rendered auth nav, account lockout,
 email-verification gate, phone SMS-OTP, rate limiting, input validation, security headers/CSP,
 image magic-byte validation · ✅ External API with timeout/retry/circuit-breaker/Zod validation ·
 ✅ Mobile-ready versioned REST API · ✅ Centralized error handling + Sentry · ✅ SSG/SSR/ISR, metadata,

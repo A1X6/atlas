@@ -35,6 +35,23 @@ which are required here.
 4. `product-repo` persists via Prisma.
 5. A consistent JSON envelope is returned; any thrown error is mapped to a status code by `http/respond.ts`.
 
+## Authentication & optimistic session
+
+Auth is **stateless JWT**: a short-lived access token kept in browser memory + a rotated, hashed
+refresh token in an `httpOnly` cookie (see [SECURITY.md](./SECURITY.md)). On top of that the web app
+layers **optimistic auth** so navigation feels instant:
+
+- On login the server also sets a **signed, read-only `atlas_session` cookie** (`{ sub, role }`).
+- `proxy.ts` reads it to redirect **without a DB hit** — signed-in users away from `/login`, signed-out
+  users away from `/app/*`.
+- `app/[locale]/layout.tsx` verifies it and seeds the client auth provider, so the **signed-in nav
+  renders on first paint** (no post-load flash).
+
+The cookie is an optimization only — it grants no access. Every protected route handler still verifies
+the **Bearer access token** via `requireRole()`, so the API stays the single source of truth and
+remains **Bearer-only for mobile**. The feature is gated on `JWT_SESSION_SECRET`; if it's unset the app
+degrades gracefully to client-side auth.
+
 ## Data model
 
 Relational, normalized (Prisma schema in `prisma/schema.prisma`):
@@ -56,7 +73,7 @@ Relational, normalized (Prisma schema in `prisma/schema.prisma`):
 | DB / ORM    | Neon Postgres + Prisma 7       | Relational domain; versioned migrations; serverless pooling      |
 | Auth        | JWT access + rotating refresh  | Stateless; reused by web + mobile; revocable                     |
 | Validation  | Zod at every boundary          | Rejects malicious/unexpected input; validates external data      |
-| Client data | TanStack Query                 | Caching + loading/error states for the admin + browse UIs        |
+| Client data | TanStack Query                 | Caching + loading/error states; single-flight token refresh, retries only transient errors |
 | Storage     | Vercel Blob behind an interface| Serverless FS is ephemeral; swappable provider                   |
 | Rate limit  | Upstash Redis                  | Shared across serverless instances                               |
 | Email       | Brevo (REST) behind `mailer.ts`| Verification/reset email; env-gated, console fallback in dev      |
@@ -79,9 +96,15 @@ Two complementary strategies, each chosen for its context:
 
 ## Rendering strategy
 
-| Surface             | Rendering            | Indexed |
-| ------------------- | -------------------- | ------- |
-| Marketing pages     | Static (SSG)         | Yes     |
-| Public catalogue    | SSR / ISR + JSON-LD  | Yes     |
-| Auth pages          | SSR (light)          | No      |
-| Authenticated app   | Dynamic (client)     | No      |
+| Surface             | Rendering                    | Indexed |
+| ------------------- | ---------------------------- | ------- |
+| Marketing pages     | SSR + full metadata/JSON-LD  | Yes     |
+| Public catalogue    | SSR + JSON-LD                | Yes     |
+| Auth pages          | SSR (light)                  | No      |
+| Authenticated app   | SSR + client data            | No      |
+
+> **All `app/[locale]/*` routes render dynamically (SSR)** because the locale layout reads the signed
+> `atlas_session` cookie to server-render the nav (optimistic auth — see above). Public pages still emit
+> full HTML + metadata/`hreflang`/JSON-LD on every request, so they remain **fully indexable**; the
+> tradeoff is they're no longer build-time static (SSG) / ISR. Restoring static prerendering for the
+> public pages while keeping the no-flash nav would use **Partial Prerendering (PPR)**.

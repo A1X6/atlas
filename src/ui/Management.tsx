@@ -113,6 +113,7 @@ export function Management() {
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("kind", "product");
       const { url } = await api<{ url: string }>("/uploads", { method: "POST", body: fd });
       setDraft((d) => (d ? { ...d, imageUrl: url } : d));
       toast.success(t("uploadSuccess"));
@@ -317,6 +318,9 @@ export function Management() {
     [t, format, selected, toggleSelect, toggleAllOnPage, data],
   );
 
+  // TanStack Table's useReactTable uses interior mutability and intentionally
+  // isn't React-Compiler memoizable; this is expected, nothing to fix here.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: data?.items ?? [],
     columns,

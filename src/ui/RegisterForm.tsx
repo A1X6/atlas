@@ -75,6 +75,7 @@ export function RegisterForm() {
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("kind", "avatar");
       const { url } = await api<{ url: string }>("/uploads", { method: "POST", body: fd, auth: false });
       setAvatarUrl(url);
     } catch (err) {

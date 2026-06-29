@@ -20,6 +20,9 @@ Honest list of what's intentionally out of scope or could be improved.
 - **Cursor pagination** ✅ — `GET /api/v1/products/feed` is keyset-paginated (newest-first) and powers
   the in-app product browser's infinite scroll. The **public catalogue keeps numbered offset pages on
   purpose** — crawlable numbered URLs are better for SEO than infinite scroll.
+- **Server-side optimistic auth** ✅ — route redirects run in `proxy.ts` and the signed-in nav is
+  server-rendered, both from a signed `atlas_session` cookie, so there's no post-load auth flash or
+  nav lag. The API stays **Bearer-only** (mobile unaffected); gated on `JWT_SESSION_SECRET`.
 
 ## Remaining functional gaps
 
@@ -46,8 +49,8 @@ Honest list of what's intentionally out of scope or could be improved.
   `proxy.ts` would be stricter.
 - **Upload endpoint is usable pre-auth** (to support registration). It is rate-limited and validates
   content, but a fully authenticated, two-step "upload then attach" flow would be tighter.
-- **Avatars are stored as public Blob URLs** (unguessable). Private blobs + signed URLs would be
-  stricter for sensitive imagery.
+- **Uploaded images are stored as public Blob URLs** (avatars under `avatars/`, product images under
+  `products/`; unguessable suffixes). Private blobs + signed URLs would be stricter for sensitive imagery.
 - **Rate limiting** no-ops if Upstash isn't configured (local dev). Configure it in any deployed
   environment.
 

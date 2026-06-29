@@ -7,6 +7,8 @@
  */
 
 let accessToken: string | null = null;
+// Single-flight guard so concurrent callers share one in-flight token refresh.
+let refreshPromise: Promise<boolean> | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
@@ -57,18 +59,42 @@ async function parse<T>(res: Response): Promise<T> {
   return json?.data as T;
 }
 
-/** Try to mint a fresh access token from the refresh cookie. Returns success. */
-export async function tryRefresh(): Promise<boolean> {
-  const res = await fetch("/api/v1/auth/refresh", { method: "POST" });
-  if (!res.ok) return false;
-  const json = await res.json().catch(() => null);
-  const token = json?.data?.accessToken as string | undefined;
-  if (!token) return false;
-  accessToken = token;
-  return true;
+async function doRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/v1/auth/refresh", { method: "POST" });
+    if (!res.ok) return false;
+    const json = await res.json().catch(() => null);
+    const token = json?.data?.accessToken as string | undefined;
+    if (!token) return false;
+    accessToken = token;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mint a fresh access token from the refresh cookie. Single-flight: concurrent
+ * callers (e.g. several queries firing together on a cold page load) share ONE
+ * in-flight refresh. This avoids a "refresh storm" — important because the
+ * refresh endpoint rotates the token, so parallel refreshes would invalidate
+ * each other and could force a spurious logout.
+ */
+export function tryRefresh(): Promise<boolean> {
+  refreshPromise ??= doRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
 }
 
 export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
+  // The in-memory access token is empty on every cold load. Rather than fire a
+  // request that's guaranteed to 401 and then retry, proactively await the
+  // (single-flight) refresh first so the very first authed request already
+  // carries the token. Skipped for explicitly public calls (auth: false).
+  if (opts.auth !== false && !accessToken) {
+    await tryRefresh();
+  }
   let res = await raw(path, opts);
   if (res.status === 401 && opts.auth !== false) {
     const refreshed = await tryRefresh();

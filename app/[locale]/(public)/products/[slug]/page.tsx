@@ -4,20 +4,21 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getTranslations, getFormatter, setRequestLocale } from "next-intl/server";
 import { Link } from "@/src/i18n/navigation";
-import { getPublishedProductBySlug } from "@/src/server/services/product-service";
+import { getCachedPublishedProductBySlug } from "@/src/server/cache/product-cache";
 import { StatusBadge } from "@/src/ui/primitives";
 import { absoluteUrl, buildAlternates } from "@/src/lib/seo";
 import type { Product } from "@/src/lib/types";
 
-// On-demand ISR: detail pages are generated on first request, then cached.
-export const revalidate = 300;
-
 type Params = Promise<{ locale: string; slug: string }>;
 
-// Memoize within a request so generateMetadata + the page share one query.
+// The route renders dynamically (the locale layout reads the session cookie),
+// so the product query is cached at the data layer instead — `unstable_cache`
+// (revalidate 300s, tag "products") keeps repeat requests off the database.
+// `cache()` additionally dedupes within a single request so generateMetadata +
+// the page share one lookup.
 const getProduct = cache(async (slug: string): Promise<Product | null> => {
   try {
-    return await getPublishedProductBySlug(slug);
+    return await getCachedPublishedProductBySlug(slug);
   } catch {
     return null;
   }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { buildAlternates } from "@/src/lib/seo";
+import { LegalPage } from "@/src/ui/LegalPage";
 
 export async function generateMetadata({
   params,
@@ -26,23 +27,17 @@ export default async function TermsPage({
   const t = await getTranslations({ locale, namespace: "legal" });
 
   return (
-    <article className="mx-auto max-w-3xl px-5 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight text-text">{t("termsTitle")}</h1>
-      <div className="mt-6 space-y-5 text-[15px] leading-relaxed text-text-2">
-        <p>{t("termsIntro")}</p>
-        <section>
-          <h2 className="text-lg font-semibold text-text">{t("termsSection1Title")}</h2>
-          <p className="mt-2">{t("termsSection1Body")}</p>
-        </section>
-        <section>
-          <h2 className="text-lg font-semibold text-text">{t("termsSection2Title")}</h2>
-          <p className="mt-2">{t("termsSection2Body")}</p>
-        </section>
-        <section>
-          <h2 className="text-lg font-semibold text-text">{t("termsSection3Title")}</h2>
-          <p className="mt-2">{t("termsSection3Body")}</p>
-        </section>
-      </div>
-    </article>
+    <LegalPage
+      eyebrow={t("legalEyebrow")}
+      title={t("termsTitle")}
+      lastUpdatedLabel={t("lastUpdatedLabel")}
+      lastUpdated={t("lastUpdated")}
+      intro={t("termsIntro")}
+      sections={[
+        { title: t("termsSection1Title"), body: t("termsSection1Body") },
+        { title: t("termsSection2Title"), body: t("termsSection2Body") },
+        { title: t("termsSection3Title"), body: t("termsSection3Body") },
+      ]}
+    />
   );
 }

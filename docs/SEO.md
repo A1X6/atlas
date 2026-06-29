@@ -14,11 +14,16 @@ See [I18N.md](./I18N.md).
 
 | Pages                                  | Rendering           | Indexed |
 | -------------------------------------- | ------------------- | ------- |
-| `/`, `/about`, `/contact`, `/privacy`, `/terms` | Static (SSG) | Yes     |
-| `/products`                            | SSR (per request)   | Yes     |
-| `/products/[slug]`                     | ISR (`revalidate=300`) | Yes  |
+| `/`, `/about`, `/contact`, `/privacy`, `/terms` | SSR        | Yes     |
+| `/products`, `/products/[slug]`        | SSR + JSON-LD       | Yes     |
 | `/login`, `/register`                  | SSR, `noindex`      | No      |
-| `/app/*`                               | Dynamic, `noindex`  | No      |
+| `/app/*`                               | SSR (dynamic), `noindex` | No  |
+
+> **Why SSR, not SSG/ISR?** `app/[locale]/layout.tsx` reads the signed `atlas_session` cookie to
+> server-render the nav (optimistic auth), which opts every locale route into dynamic rendering. Public
+> pages still return complete HTML + metadata/`hreflang`/JSON-LD on each request, so **indexing is
+> unaffected** — only the caching mode changed. Partial Prerendering (PPR) could restore static shells
+> while keeping the dynamic nav.
 
 ## What's implemented
 

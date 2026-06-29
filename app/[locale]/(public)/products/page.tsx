@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/src/i18n/navigation";
-import { listProducts, listCategories } from "@/src/server/services/product-service";
+import { getCachedPublicProducts, getCachedCategories } from "@/src/server/cache/product-cache";
 import { productQuerySchema } from "@/src/server/validation/product-schemas";
 import { ProductCard } from "@/src/ui/ProductCard";
 import { ErrorState, ProductGridSkeleton } from "@/src/ui/states";
@@ -68,7 +68,7 @@ export default async function ProductsPage({
   // distinct query) and keep the filter UI stable across navigations.
   let categories: string[] = [];
   try {
-    categories = await listCategories();
+    categories = await getCachedCategories();
   } catch {
     // Non-fatal: the catalogue still renders without the category chips.
   }
@@ -142,9 +142,9 @@ async function ProductResults({ locale, query }: { locale: string; query: Query 
 
   // Declared without `| null`: the catch always returns, so past the try/catch
   // TypeScript treats `result` as definitely assigned.
-  let result: Awaited<ReturnType<typeof listProducts>>;
+  let result: Awaited<ReturnType<typeof getCachedPublicProducts>>;
   try {
-    result = await listProducts(query, { includeAllStatuses: false });
+    result = await getCachedPublicProducts(query);
   } catch {
     return (
       <ErrorState

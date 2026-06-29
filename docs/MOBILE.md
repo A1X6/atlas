@@ -16,6 +16,10 @@ Authentication uses **JWT access + refresh tokens**, not server sessions tied to
 - Web and mobile both send `Authorization: Bearer <access token>`.
 - The refresh token is delivered in an httpOnly cookie for web; a native app would store it in the
   platform secure store (Keychain / Keystore) and call the same `/api/v1/auth/refresh` endpoint.
+- The web app additionally sets a signed, read-only `atlas_session` cookie **purely** to render the
+  signed-in nav and short-circuit redirects on the server (a UX optimization). It is **never used to
+  authorize API calls** — the API authenticates the Bearer token only — so it changes nothing for a
+  mobile client, which simply doesn't send it.
 
 Because auth is stateless, the API scales horizontally with no session affinity.
 
@@ -39,5 +43,6 @@ serverless.
 
 Registration, login/refresh/logout, profile (`/auth/me`), **email verification & password reset**,
 **account management** (multiple emails/phones with **email**/**SMS OTP** verification), product browsing
-with pagination/search/sort, admin product management, image upload, and the external sync — all already
-HTTP endpoints. A mobile app only needs to build its own UI.
+with pagination/search/sort, admin product management, image upload (avatars vs product images via a
+`kind` field), and the external sync — all already HTTP endpoints. A mobile app only needs to build its
+own UI.

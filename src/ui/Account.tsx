@@ -174,6 +174,7 @@ function AccountEditor({
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("kind", "avatar");
       const { url } = await api<{ url: string }>("/uploads", { method: "POST", body: fd });
       setAvatarUrl(url);
       toast.success(t("uploadSuccess"));

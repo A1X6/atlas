@@ -12,19 +12,27 @@ Security controls mapped to the risks called out in the assessment.
 | **Permissions (authz)**| `requireRole()` enforces roles on every protected route **server-side**. The UI also hides actions, but the API is the source of truth — a USER token calling an admin route gets **403**. Admin role changes are guarded against **self-lockout** and removing the **last admin**. |
 | **Personal data**      | Responses use **DTOs** (`profileSelect`) that never include the password hash. Data access is centralized in repositories. |
 | **Application APIs**   | Every request body/query is validated with **Zod**; a central error handler returns consistent JSON and never leaks stack traces. |
-| **Uploaded images**    | Validated by **magic bytes** (not the spoofable Content-Type), size-capped (4 MB), stored under **random** keys (no path traversal), behind a storage interface. |
+| **Uploaded images**    | Validated by **magic bytes** (not the spoofable Content-Type), size-capped (4 MB), stored under **random, kind-namespaced** keys (`avatars/…`, `products/…`; no path traversal), behind a storage interface. |
 | **External API creds** | All external calls (DummyJSON sync, **Brevo** email, **Twilio** SMS, Upstash, Vercel Blob) are **server-side only**; keys are read solely through the `server-only` `env.ts` and never reach the client. Untrusted responses are **Zod-validated** before persistence. |
 | **Malicious requests** | **Rate limiting** (Upstash Redis sliding window) on auth, contact, upload, and sync routes; input validation; security headers. |
 | **Transport/headers**  | CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and HSTS (see `next.config.ts`). |
-| **CSRF**               | Data APIs authenticate via **Bearer tokens**, not ambient cookies, so they aren't exposed to CSRF. The only cookie (refresh token) is `httpOnly` + `Secure` + `SameSite=strict` and scoped to `/api/v1/auth`. |
+| **CSRF**               | State-changing APIs authenticate via **Bearer tokens**, not ambient cookies, so they aren't exposed to CSRF. Cookies carry only the **refresh token** (`httpOnly` + `Secure` + `SameSite=strict`, scoped to `/api/v1/auth`) and a signed, read-only **`atlas_session`** (`httpOnly` + `Secure` + `SameSite=lax`) used solely for server-side redirects/nav — **no mutation trusts a cookie**. |
 | **XSS**                | React escapes output; access token kept **in memory** (not `localStorage`); CSP restricts sources. |
 
 ## Token transport
 
-- **Access token**: returned in the JSON body; the web client holds it in memory and sends it as
-  `Authorization: Bearer`. Mobile clients do the same. On a 401 the client transparently calls
-  `/auth/refresh` once and retries.
-- **Refresh token**: `httpOnly`, `Secure`, `SameSite=strict` cookie scoped to the auth endpoints.
+- **Access token**: returned in the JSON body; the web client holds it **in memory** (never
+  `localStorage`) and sends it as `Authorization: Bearer`. Mobile clients do the same. On a cold load
+  the client **mints a token before the first request** and **dedupes concurrent refreshes**
+  (single-flight) so parallel calls can't trigger competing refresh-token rotations; a 401 still
+  refreshes once and retries as a fallback.
+- **Refresh token**: `httpOnly`, `Secure`, `SameSite=strict` cookie scoped to the auth endpoints,
+  rotated on every use.
+- **`atlas_session`** (web only): a signed (`JWT_SESSION_SECRET`, HS256), `httpOnly`, `SameSite=lax`
+  cookie holding only `{ sub, role }`. It lets `proxy.ts` make instant **optimistic** redirect
+  decisions and lets the server render the signed-in nav on first paint (no auth flash) **without a DB
+  hit**. It grants **no privileges** — every protected route still re-checks the Bearer token. If
+  `JWT_SESSION_SECRET` is unset the app falls back to client-side auth; mobile clients ignore it.
 
 ## Conscious tradeoffs
 
@@ -32,5 +40,6 @@ Security controls mapped to the risks called out in the assessment.
   styles. A nonce-based CSP via a `proxy.ts` is the stricter upgrade.
 - **Upload endpoint is usable pre-auth** so it can power the registration form. It is hardened (content
   validation, size cap, random keys, IP rate limiting) and returns only an opaque URL.
-- **Avatars use public Blob URLs** with unguessable random suffixes. Switch to `access: "private"` +
-  signed URLs if avatars ever need stricter control.
+- **Uploaded images use public Blob URLs** (avatars under `avatars/`, product images under
+  `products/`) with unguessable random suffixes. Switch to `access: "private"` + signed URLs if any
+  imagery ever needs stricter control.
